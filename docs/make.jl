@@ -12,14 +12,17 @@ makedocs(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://brendanjohnharris.github.io/TimeseriesFeatures.jl",
         edit_link="main",
-        assets=String[],
+        assets=String[]
     ),
     pages=[
         "Home" => "index.md",
-    ],
+        "Features" => "features.md",
+        "Feature Sets" => "featuresets.md",
+        "Feature Arrays" => "featurearrays.md",
+    ]
 )
 
 deploydocs(;
     repo="github.com/brendanjohnharris/TimeseriesFeatures.jl",
-    devbranch="main",
+    devbranch="main"
 )
