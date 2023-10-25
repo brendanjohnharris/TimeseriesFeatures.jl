@@ -1,0 +1,7 @@
+name = "TimeseriesFeatures"
+uuid = "f3112013-b923-4dfa-b867-8806c885f823"
+authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.6"
