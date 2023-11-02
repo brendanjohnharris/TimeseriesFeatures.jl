@@ -3,6 +3,7 @@ using Test
 using DimensionalData
 using Statistics
 using StatsBase
+using CausalityTools
 
 X = randn(1000, 5)
 
@@ -106,4 +107,30 @@ end
     τ = TimeseriesFeatures.firstcrossing(x)
     @test 161 < τ < 163
     @test_nowarn CR_RAD(x)
+end
+
+
+@testset "PairwiseFeatures" begin
+    X = randn(1000, 5)
+    𝑓 = Pearson
+    f = @test_nowarn 𝑓(X)
+
+    X = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)))
+    f = @test_nowarn 𝑓(X)
+    @test dims(f, 1) == dims(X, 2) == dims(f, 2)
+
+    𝒇 = FeatureSet([Pearson, Covariance])
+    @test 𝒇(X) isa FeatureArray
+end
+
+
+@testset "CausalityToolsExt" begin
+    X = randn(1000, 2)
+    F = @test_nowarn MI_Lord_NN_20(X)
+    @test F[2] < 0.5
+
+    x = sin.(0.01:0.01:10)
+    y = cos.(0.01:0.01:10)
+    F = @test_nowarn MI_Lord_NN_20([x y])
+    @test F[2] > 7
 end

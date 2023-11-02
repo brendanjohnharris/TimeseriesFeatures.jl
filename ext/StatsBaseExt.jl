@@ -21,7 +21,22 @@ partial_ac = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
 export partial_ac
 
 
-function firstcrossing(x, threshold=0)
+function firstcrossing(r, threshold=0)
+    if first(r) < threshold
+        idx = findfirst(r .> threshold)
+    elseif first(r) > threshold
+        idx = findfirst(r .< threshold)
+    elseif first(r) == threshold
+        return 1
+    elseif all(r) .> threshold || all(r) .< threshold
+        return nothing
+    end
+    b = r[idx]
+    a = r[idx-1]
+    return idx - 1 + (threshold - a) / (b - a)
+end
+
+function firstcrossingacf(x, threshold=0)
     lagchunks = min(100, length(x) - 1)
     lags = 1:lagchunks
     i = 1
@@ -66,7 +81,7 @@ function RAD(z, τ=1, doAbs=true)
     end
     if τ === :τ
         # Make τ the first zero crossing of the autocorrelation function
-        τ = firstcrossing(z, 0)
+        τ = firstcrossingacf(z, 0)
     end
 
     y = @view z[τ+1:end]
@@ -85,4 +100,4 @@ function RAD(z, τ=1, doAbs=true)
 end
 
 CR_RAD = Feature(x -> RAD(x), :CR_RAD, "Rescaled Auto-Density criticality metric", ["criticality"])
-export RAD, CR_RAD, firstcrossing
+export RAD, CR_RAD, firstcrossingacf

@@ -36,9 +36,9 @@ G = 𝒈₁(X)
 G = 𝒈₂(X) # The intersection contains the :sum of the first argument to ∩; 𝒇
 ```
 """
-struct FeatureSet <: AbstractFeatureSet
-    features::Vector{AbstractFeature}
-    FeatureSet(features::Vector{T}) where {T<:AbstractFeature} = new(features)
+struct FeatureSet{T} <: AbstractFeatureSet where {T}
+    features::Vector{T}
+    FeatureSet(features::Vector{T}) where {T<:AbstractFeature} = new{T}(features)
 end
 
 FeatureSet(methods::AbstractVector{<:Function}, args...) = Feature.(methods, args...) |> FeatureSet

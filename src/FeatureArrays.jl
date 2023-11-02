@@ -187,4 +187,5 @@ _construct(𝑓::AbstractFeature, X::AbstractArray) = FeatureArray(X, (Dim{:feat
 _setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray) = FeatureArray(𝒇(Array(X)), (Dim{:feature}(getnames(𝒇)), dims(X)[2:end]...))
 (𝒇::AbstractFeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
 
+
 end # module
