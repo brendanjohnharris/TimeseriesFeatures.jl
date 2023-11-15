@@ -11,7 +11,7 @@ ac = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
     ACF) # We compute the ACF just once, and pick off results for each feature
 export ac
 
-PACF = Feature(x -> pacf(x, ac_lags; method=:regression), :ACF, "Partial autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
+PACF = Feature(x -> pacf(x, ac_lags; method=:regression), :PACF, "Partial autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
 
 partial_ac = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
     Symbol.(["partial_ac_$ℓ" for ℓ ∈ ac_lags]),
@@ -81,7 +81,9 @@ function RAD(z, τ=1, doAbs=true)
     end
     if τ === :τ
         # Make τ the first zero crossing of the autocorrelation function
-        τ = firstcrossingacf(z, 0)
+        τ = round(Int, firstcrossingacf(z, 0))
+    elseif !isinteger(τ)
+        error("τ must be an integer or :τ")
     end
 
     y = @view z[τ+1:end]

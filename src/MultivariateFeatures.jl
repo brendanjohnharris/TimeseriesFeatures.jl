@@ -1,9 +1,16 @@
+@reexport module MultivariateFeatures
 using Statistics
 using LinearAlgebra
-export MultivariateFeature, MultivariateFeatureSet
-export SVDCovariance
+import ..Features: AbstractFeature, Feature, getmethod, getname
+import ..FeatureSets: AbstractFeatureSet, FeatureSet
+import ..PairwiseFeatures: AbstractPairwiseFeature
+using ..DimensionalData
+export MultivariateFeature, MultivariateFeatureSet, AbstractMultivariateFeature, PairwiseOrMultivariate
+export Covariance_svd, Pearson_svd
 
 abstract type AbstractMultivariateFeature <: AbstractFeature end
+
+# ! Add tests
 
 Base.@kwdef struct MultivariateFeature <: AbstractMultivariateFeature
     method::Function # For an MultivariateFeature, this should be X -> f(X), X is a matrix
@@ -16,6 +23,7 @@ MultivariateFeature(method::Function, name, description::String, keywords::Vecto
 
 
 (𝑓::AbstractMultivariateFeature)(X::AbstractMatrix) = getmethod(𝑓)(X)
+
 function (𝑓::AbstractMultivariateFeature)(X::AbstractArray)
     idxs = CartesianIndices(size(X)[3:end])
     idxs = Iterators.product(idxs, idxs)
@@ -26,22 +34,27 @@ function (𝑓::AbstractMultivariateFeature)(X::DimensionalData.AbstractDimMatri
     DimArray(𝑓(X.data), (dims(X, 2), dims(X, 2)))
 end
 
-const MultivariateFeatureSet = FeatureSet{<:AbstractMultivariateFeature}
+const PairwiseOrMultivariate = Union{<:AbstractMultivariateFeature,<:AbstractPairwiseFeature}
+const MultivariateFeatureSet = FeatureSet{<:PairwiseOrMultivariate}
 
-# function (𝒇::MultivariateFeatureSet)(x::AbstractMatrix)
-#     DimArray(
-#         permutedims((cat(FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [3, 1, 2]),
-#         (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(), DimensionalData.AnonDim())) |> FeatureArray
-# end
-# function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
-#     DimArray(
-#         permutedims((cat(FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [3, 1, 2]),
-#         (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
-# end
-
-function svdcovariance(X)
-    U, S, V = svd(X')
-    S = Diagonal(S)
-    (U * S * S' * U') / (size(X, 1) - 1)
+function (𝒇::MultivariateFeatureSet)(x::AbstractMatrix)
+    DimArray(
+        permutedims((cat(FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [ndims(x) + 1, (1:ndims(x))...]),
+        (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(), DimensionalData.AnonDim())) |> FeatureArray
 end
-SVDCovariance = MultivariateFeature(X -> svdcovariance(X), :SVDCovariance, "Sample covariance calculated with the singular-value decomposition", ["covariance"])
+function (𝒇::MultivariateFeatureSet)(x::DimensionalData.AbstractDimMatrix)
+    DimArray(
+        permutedims((cat(FeatureVector([𝑓(x |> collect) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [ndims(x) + 1, (1:ndims(x))...]),
+        (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+end
+
+# function svdcovariance(X)
+#     U, S, V = svd(X')
+#     S = Diagonal(S)
+#     (U * S * S' * U') / (size(X, 1) - 1)
+# end
+Covariance_svd = MultivariateFeature(X -> cov(X), :Covariance_svd, "Sample covariance", ["covariance"])
+Pearson_svd = MultivariateFeature(X -> cor(X), :Pearson_svd, "Pearson correlation coefficient", ["correlation"])
+
+
+end

@@ -1,9 +1,11 @@
+using DSP
+using CausalityTools
+using StatsBase
 using TimeseriesFeatures
 using Test
 using DimensionalData
 using Statistics
-using StatsBase
-using CausalityTools
+using BenchmarkTools
 
 X = randn(1000, 5)
 
@@ -56,17 +58,21 @@ end
 
 @testset "DimArrays" begin
     x = DimArray(randn(100), (Dim{:x}(1:100),))
-    @test σ(x)[:std] == σ(x |> vec)
+    @test σ(x) == σ(x |> vec)
     @test 𝒇(x) == 𝒇(x |> vec)
+
+    x = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)))
+    @test σ(x) == σ(x |> Matrix)
+    @test 𝒇(x).data == 𝒇(x |> Matrix).data
 end
 
 @testset "SuperFeatures" begin
-    𝐱 = rand(1000, 2)
-    @test_nowarn TimeseriesFeatures.zᶠ(𝐱)
+    x = rand(1000, 2)
+    @test_nowarn TimeseriesFeatures.zᶠ(x)
     μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series", super=TimeseriesFeatures.zᶠ)
     σ = SuperFeature(std, :σ, ["1"], "Standard deviation of the z-scored time series"; super=TimeseriesFeatures.zᶠ)
     𝒇 = SuperFeatureSet([μ, σ])
-    @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol=1e-9))
+    @test all(isapprox.(𝒇(x), [0.0 0.0; 1.0 1.0]; atol=1e-9))
 end
 
 @testset "ACF and PACF" begin
@@ -104,7 +110,7 @@ end
 @testset "RAD" begin
     x = sin.(0.01:0.01:10)
     r = autocor(x, 1:length(x)-1)
-    τ = TimeseriesFeatures.firstcrossing(x)
+    τ = TimeseriesFeatures.firstcrossingacf(x)
     @test 161 < τ < 163
     @test_nowarn CR_RAD(x)
 end
@@ -123,6 +129,13 @@ end
     @test 𝒇(X) isa FeatureArray
 end
 
+@testset "MultivariateFeatures" begin
+    X = DimArray(randn(100000, 20), (Dim{:x}(1:100000), Dim{:var}(1:20)))
+    @test all(isapprox.(Covariance_svd(X), Covariance(X), atol=1e-4))
+    @time f1 = Covariance(X) # Much faster
+    @time f2 = Covariance_svd(X) # Much faster
+    @time cov(X) # Faster again
+end
 
 @testset "CausalityToolsExt" begin
     X = randn(1000, 2)
@@ -133,4 +146,54 @@ end
     y = cos.(0.01:0.01:10)
     F = @test_nowarn MI_Lord_NN_20([x y])
     @test F[2] > 7
+end
+
+@testset "Super" begin
+    using StatsBase, TimeseriesFeatures, Test
+    𝐱 = rand(1000, 2)
+    μ = Feature(mean, :μ, ["0"], "Mean value of the time series")
+    σ = Feature(std, :σ, ["1"], "Standard deviation of the time series")
+    μ_z = @test_nowarn Super(μ, TimeseriesFeatures.zᶠ)
+    σ_z = @test_nowarn Super(σ, TimeseriesFeatures.zᶠ)
+    @test μ_z isa Super
+    @test μ_z(𝐱) ≈ [0 0] atol = 1e-13
+    𝒇 = SuperFeatureSet([μ_z, σ_z])
+    @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol=1e-9))
+
+
+
+    # Check speed
+    μ = [Feature(mean, Symbol("μ_$i"), ["0"], "Mean value of the time series") for i = 1:100]
+    superfeature = @test_nowarn SuperFeatureSet(Super.(μ, [TimeseriesFeatures.zᶠ]))
+    feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"), ["0"], "Mean value of the time series") for i = 1:100]
+
+    a = @benchmark superfeature(𝐱) setup = (superfeature = SuperFeatureSet(Super.(μ, [TimeseriesFeatures.zᶠ]));
+    𝐱 = rand(1000, 2))
+    b = @benchmark [f(𝐱) for f in feature] setup = (feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"), ["0"], "Mean value of the time series") for i = 1:100];
+    𝐱 = rand(1000, 2))
+    @test median(a.times) < median(b.times) / 2
+
+    # using PProf
+    # using Profile
+    # Profile.clear()
+    # # @profile 𝒇(𝐱)
+    # # pprof()
+    # @profile superfeature(𝐱)
+    # pprof()
+end
+
+
+@testset "PPC" begin
+    using DimensionalData, DSP, Test, TimeseriesFeatures
+    X = randn(1000, 2)
+    F = @test_nowarn PPC_Analytic_Phase(X)
+
+    X = DimArray(randn(1000, 2), (Ti(1:1000), Dim{:var}(1:2)))
+    F = @test_nowarn Analytic_Phase(X)
+    F = @test_nowarn PPC_Analytic_Phase(X)
+
+    x = 0.01:0.01:100
+    X = [sin.(x) cos.(x)]
+    F = PPC_Analytic_Phase(X)
+    @test F ≈ [1 1; 1 1] rtol = 1e-3
 end

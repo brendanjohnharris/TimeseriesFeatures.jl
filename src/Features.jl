@@ -42,7 +42,10 @@ getkeywords(𝑓::AbstractFeature) = 𝑓.keywords
 getdescription(𝑓::AbstractFeature) = 𝑓.description
 
 (𝑓::AbstractFeature)(x::AbstractVector) = getmethod(𝑓)(x)
+(𝑓::AbstractFeature)(X::AbstractVector{<:AbstractArray}) = map(getmethod(𝑓), X)
+(𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(getmethod(𝑓), X)
 (𝑓::AbstractFeature)(X::AbstractArray) = mapslices(getmethod(𝑓), X; dims=1)
+(𝑓::AbstractFeature)(𝒳::AbstractDimStack) = map(𝑓, 𝒳)
 
 # We assume that any features with the same name are the same feature
 hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)

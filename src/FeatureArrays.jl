@@ -9,8 +9,12 @@ import Base: Array, getindex, setindex!
 
 export AbstractFeatureArray, AbstractFeatureVector, AbstractFeatureMatrix,
     FeatureArray, FeatureVector, FeatureMatrix,
-    getdim, setdim
-
+    getdim, setdim,
+    FeatureDim, Fe # This should be set below in a future breaking release
+# abstract type FeatureDim{T} <: DimensionalData.DependentDim{T} end
+# DimensionalData.@dim Fe FeatureDim "Fe"
+const FeatureDim = Dim{:feature}
+const Fe = FeatureDim
 
 
 abstract type AbstractFeatureArray{T,N,D,A} <: AbstractDimArray{T,N,D,A} end
@@ -154,7 +158,7 @@ function sortbydim(F::AbstractDimArray, dim; rev=false)
 end
 
 
-(𝒇::AbstractFeatureSet)(x::AbstractVector) = FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)
+(𝒇::AbstractFeatureSet)(x::AbstractVector{<:Number}) = FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)
 
 function (𝒇::AbstractFeatureSet)(X::AbstractVector{<:AbstractVector})
     F = Array{Float64}(undef, (length(𝒇), length(X)))
@@ -182,9 +186,11 @@ function (𝒇::AbstractFeatureSet)(X::AbstractArray)
     FeatureArray(F, 𝒇)
 end
 
-_construct(𝑓::AbstractFeature, X::AbstractArray) = FeatureArray(X, (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...))
-(𝑓::AbstractFeature)(X::AbstractDimArray) = _construct(𝑓, mapslices(getmethod(𝑓), X; dims=1))
-_setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray) = FeatureArray(𝒇(Array(X)), (Dim{:feature}(getnames(𝒇)), dims(X)[2:end]...))
+# _construct(𝑓::AbstractFeature, X::AbstractDimArray{T,1}) where {T} = 𝑓(X.data)
+_construct(𝑓::AbstractFeature, X::DimensionalData.AbstractDimMatrix) = DimArray(reshape(𝑓.(eachcol(X.data)), 1, size(X)[2:end]...), (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...))
+(𝑓::AbstractFeature)(X::DimensionalData.AbstractDimMatrix) = _construct(𝑓, X)
+_setconstruct(𝒇::AbstractFeatureSet, X::DimensionalData.AbstractDimArray) = FeatureArray(𝒇(X.data), (Dim{:feature}(getnames(𝒇)), dims(X)[2:end]...))
+_setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray) = FeatureArray(𝒇(X), (Dim{:feature}(getnames(𝒇)), dims(X)[2:end]...))
 (𝒇::AbstractFeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
 
 

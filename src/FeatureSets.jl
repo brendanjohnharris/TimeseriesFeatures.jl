@@ -97,6 +97,7 @@ for p ∈ [:+, :\, :union, :intersect]
 end
 
 (𝒇::AbstractFeatureSet)(x, f::Symbol) = 𝒇[f](x)
+(𝒇::AbstractFeatureSet)(𝒳::AbstractDimStack) = map(𝒇, 𝒳)
 
 format(𝒇::AbstractFeatureSet) = "$(typeof(𝒇)) with features: $(getnames(𝒇))"
 show(𝒇::AbstractFeatureSet) = 𝒇 |> format |> show
