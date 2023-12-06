@@ -24,7 +24,6 @@ PPC = PairwiseFeature(pairwisephaseconsistency, :PPC, ["synchrony", "phase"], "T
 
 PPC_Analytic_Phase = Super(PPC, Analytic_Phase)
 
-
 phaselockingvalue(x::AbstractVector) = exp.(im .* x) |> mean |> abs
 
 function phaselockingvalue(x::AbstractVector, y::AbstractVector)
