@@ -2,7 +2,6 @@ using DSP
 using CausalityTools
 using StatsBase
 using TimeseriesFeatures
-using TimeseriesTools
 using Test
 using DimensionalData
 using Statistics
