@@ -2,26 +2,29 @@ using .StatsBase
 
 ac_lags = 1:40
 
-ACF = Feature(x -> autocor(x, ac_lags; demean=true), :ACF, "Autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
+ACF = Feature(x -> autocor(x, ac_lags; demean = true), :ACF,
+              "Autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
 
-AC = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
-    Symbol.(["AC_$ℓ" for ℓ ∈ ac_lags]),
-    ["Autocorrelation at lag $ℓ" for ℓ ∈ ac_lags],
-    [["correlation"] for ℓ ∈ ac_lags],
-    ACF) # We compute the ACF just once, and pick off results for each feature
+AC = SuperFeatureSet([x -> x[ℓ] for ℓ in eachindex(ac_lags)],
+                     Symbol.(["AC_$ℓ" for ℓ in ac_lags]),
+                     ["Autocorrelation at lag $ℓ" for ℓ in ac_lags],
+                     [["correlation"] for ℓ in ac_lags],
+                     ACF) # We compute the ACF just once, and pick off results for each feature
 export AC
 
-PACF = Feature(x -> pacf(x, ac_lags; method=:regression), :PACF, "Partial autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
+PACF = Feature(x -> pacf(x, ac_lags; method = :regression), :PACF,
+               "Partial autocorrelation function to lag $(maximum(ac_lags))",
+               ["autocorrelation"])
 
-Partial_AC = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
-    Symbol.(["Partial_AC_$ℓ" for ℓ ∈ ac_lags]),
-    ["Partial autocorrelation at lag $ℓ (regression method)" for ℓ ∈ ac_lags],
-    [["correlation"] for ℓ ∈ ac_lags],
-    PACF)
+Partial_AC = SuperFeatureSet([x -> x[ℓ] for ℓ in eachindex(ac_lags)],
+                             Symbol.(["Partial_AC_$ℓ" for ℓ in ac_lags]),
+                             ["Partial autocorrelation at lag $ℓ (regression method)"
+                              for ℓ in ac_lags],
+                             [["correlation"] for ℓ in ac_lags],
+                             PACF)
 export Partial_AC
 
-
-function firstcrossing(r, threshold=0)
+function firstcrossing(r, threshold = 0)
     if first(r) < threshold
         idx = findfirst(r .> threshold)
     elseif first(r) > threshold
@@ -32,23 +35,23 @@ function firstcrossing(r, threshold=0)
         return nothing
     end
     b = r[idx]
-    a = r[idx-1]
+    a = r[idx - 1]
     return idx - 1 + (threshold - a) / (b - a)
 end
 
-function firstcrossingacf(x, threshold=0)
+function firstcrossingacf(x, threshold = 0)
     lagchunks = min(100, length(x) - 1)
     lags = 1:lagchunks
     i = 1
-    r1 = sign(autocor(x, [1]; demean=true) |> first) # If the time series is anticorrelated with itself, we look for the first upward crossing over the threshold
+    r1 = sign(autocor(x, [1]; demean = true) |> first) # If the time series is anticorrelated with itself, we look for the first upward crossing over the threshold
     threshold = threshold * r1
     while i * lagchunks < length(x)
-        r = autocor(x, lags; demean=true) .* r1
+        r = autocor(x, lags; demean = true) .* r1
         lastr = r[end]
         if any(r .< threshold)
             idx = findfirst(r .< threshold)
             b = r[idx]
-            a = idx == 1 ? lastr : r[idx-1]
+            a = idx == 1 ? lastr : r[idx - 1]
             idx += (i - 1) * lagchunks
             return idx - 1 + (threshold - a) / (b - a)
         else
@@ -57,7 +60,6 @@ function firstcrossingacf(x, threshold=0)
         end
     end
 end
-
 
 """
     RAD(x, τ=1, doAbs=true)
@@ -74,7 +76,7 @@ Inputs:
 Outputs:
     f:      The RAD feature value
 """
-function RAD(z, τ=1, doAbs=true)
+function RAD(z, τ = 1, doAbs = true)
     if doAbs
         z = z .- median(z)
         z = abs.(z)
@@ -86,8 +88,8 @@ function RAD(z, τ=1, doAbs=true)
         error("τ must be an integer or :τ")
     end
 
-    y = @view z[τ+1:end]
-    x = @view z[1:end-τ]
+    y = @view z[(τ + 1):end]
+    x = @view z[1:(end - τ)]
 
     # Median split
     subMedians = x .< median(x)
@@ -101,5 +103,6 @@ function RAD(z, τ=1, doAbs=true)
     f = sigma_dx * densityDifference
 end
 
-CR_RAD = Feature(x -> RAD(x), :CR_RAD, "Rescaled Auto-Density criticality metric", ["criticality"])
+CR_RAD = Feature(x -> RAD(x), :CR_RAD, "Rescaled Auto-Density criticality metric",
+                 ["criticality"])
 export RAD, CR_RAD, firstcrossingacf

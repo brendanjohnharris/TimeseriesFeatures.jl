@@ -17,9 +17,14 @@ Base.@kwdef struct PairwiseFeature <: AbstractPairwiseFeature
     keywords::Vector{String} = [""]
 end
 const SPI = PairwiseFeature
-PairwiseFeature(method::Function, name=Symbol(method), keywords::Vector{String}=[""], description::String="") = PairwiseFeature(; method, name, keywords, description)
-PairwiseFeature(method::Function, name, description::String, keywords::Vector{String}=[""]) = PairwiseFeature(; method, name, keywords, description)
-
+function PairwiseFeature(method::Function, name = Symbol(method),
+                         keywords::Vector{String} = [""], description::String = "")
+    PairwiseFeature(; method, name, keywords, description)
+end
+function PairwiseFeature(method::Function, name, description::String,
+                         keywords::Vector{String} = [""])
+    PairwiseFeature(; method, name, keywords, description)
+end
 
 (𝑓::AbstractPairwiseFeature)(x::AbstractVector) = getmethod(𝑓)(x, x)
 function (𝑓::AbstractPairwiseFeature)(X::AbstractArray)
@@ -50,24 +55,25 @@ const PairwiseFeatureSet = FeatureSet{<:AbstractPairwiseFeature}
 const SPISet = FeatureSet{<:AbstractPairwiseFeature}
 
 function (𝒇::PairwiseFeatureSet)(x::AbstractMatrix)
-    DimArray(
-        permutedims((cat(FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [ndims(x) + 1, 1:ndims(x)]),
-        (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(), DimensionalData.AnonDim())) |> FeatureArray
+    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
+                         [ndims(x) + 1, 1:ndims(x)]),
+             (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(),
+              DimensionalData.AnonDim())) |> FeatureArray
 end
 function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
-    DimArray(
-        permutedims((cat(FeatureVector([𝑓(x) for 𝑓 ∈ 𝒇], 𝒇)...; dims=ndims(x) + 1)), [3, 1, 2]),
-        (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
+                         [3, 1, 2]),
+             (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
 end
 
 # TODO Write tests for this
 
-Pearson = SPI((x, y) -> cor(x, y), :Pearson, "Pearson correlation coefficient", ["correlation"])
+Pearson = SPI((x, y) -> cor(x, y), :Pearson, "Pearson correlation coefficient",
+              ["correlation"])
 Covariance = SPI((x, y) -> cov(x, y), :Pearson, "Sample covariance", ["covariance"])
 
-
-
-function (𝑓::AbstractSuper{F,S})(x::AbstractVector) where {F<:AbstractPairwiseFeature,S<:AbstractFeature}
+function (𝑓::AbstractSuper{F, S})(x::AbstractVector) where {F <: AbstractPairwiseFeature,
+                                                            S <: AbstractFeature}
     y = getsuper(𝑓)(x)
     getfeature(𝑓)(y, y)
 end
@@ -78,9 +84,5 @@ end
 # end
 # (𝑓::AbstractSuper{F,S})(X::AbstractArray) where {F<:AbstractPairwiseFeature,S<:AbstractFeature}
 # (𝑓::AbstractSuper{F,S})(X::AbstractDimArray) where {F<:AbstractPairwiseFeature,S<:AbstractFeature} = _construct(𝑓, mapslices(getmethod(𝑓) ∘ getsuper(𝑓), X; dims=1))
-
-
-
-
 
 end # module
