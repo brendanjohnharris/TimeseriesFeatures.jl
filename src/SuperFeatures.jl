@@ -39,8 +39,8 @@ getfeature(𝑓::SuperFeature) = Feature(getmethod(𝑓))
 (𝑓::SuperFeature)(x::AbstractVector) = x |> getsuper(𝑓) |> getmethod(𝑓)
 (𝑓::SuperFeature)(x::DimensionalData.AbstractDimVector) = x |> getsuper(𝑓) |> getmethod(𝑓)
 
-function (𝑓::SuperFeature)(X::AbstractDimArray)
-    FeatureArray((getmethod(𝑓) ∘ getsuper(𝑓))(X.data),
+function (𝑓::SuperFeature)(X::DimensionalData.AbstractDimArray)
+    FeatureArray(getmethod(𝑓).(getsuper(𝑓)(X)),
                  (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...))
 end
 function (𝑓::SuperFeature)(X::DimensionalData.AbstractDimMatrix)

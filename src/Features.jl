@@ -50,7 +50,7 @@ getdescription(𝑓::AbstractFeature) = 𝑓.description
 (𝑓::AbstractFeature)(X::AbstractVector{<:AbstractArray}) = map(getmethod(𝑓), X)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(getmethod(𝑓), X)
 function (𝑓::AbstractFeature)(X::AbstractArray)
-    reshape(getmethod(𝑓).(eachcol(X)), 1, size(X)[2:end]...)
+    reshape(𝑓.(eachslice(X, dims = Tuple(2:ndims(X)))), 1, size(X)[2:end]...)
 end
 
 # We assume that any features with the same name are the same feature

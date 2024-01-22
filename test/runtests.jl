@@ -33,6 +33,23 @@ X = randn(1000, 5)
     @test 𝒇₂ == 𝒇₃ ∩ 𝒇₂
 end
 
+@testset "Multidimensional arrays" begin
+    𝒇₂ = @test_nowarn FeatureSet([μ, σ])
+    𝒇₃ = 𝒇₁ + 𝒇₂
+    X = randn(100, 3, 3)
+    @test_nowarn 𝒇₁(X)
+    @test_nowarn 𝒇₃(X)
+    @test_nowarn 𝒇₃[:sum]
+    @test_nowarn 𝒇₃(X)[:sum, :, :]
+    @test 𝒇₃(X)[:sum] == 𝒇₃(X)[:sum, :, :]
+    @test_nowarn 𝒇₃(X)[[:sum, :length], :, :]
+    @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :, :]
+
+    F = @test_nowarn μ(X)
+    @test F isa Array{<:Float64, 3}
+    @test size(F) == (1, 3, 3)
+end
+
 @testset "FeatureArray indexing" begin
     𝑓s = [:mean, :std]
     𝑓 = FeatureSet([μ, σ])
@@ -97,6 +114,26 @@ end
     F = 𝒇(x)
     @test F isa FeatureArray{<:Float64}
     @test F ≈ [0 0; 1 1]
+
+    x = DimArray(randn(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)))
+    @test σ(x) == σ(x |> Array)
+    @test 𝒇(x).data == 𝒇(x |> Array).data
+
+    μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
+                     super = TimeseriesFeatures.zᶠ)
+    σ = SuperFeature(std, :σ, ["1"], "Standard deviation of the z-scored time series";
+                     super = TimeseriesFeatures.zᶠ)
+    𝒇 = SuperFeatureSet([μ, σ])
+
+    F = @test_nowarn σ(x)
+    @test all(F .≈ 1.0)
+    @test F isa FeatureArray{<:Float64}
+    F = @test_nowarn μ(x)
+    @test F isa FeatureArray{<:Float64}
+
+    F = 𝒇(x)
+    @test F isa FeatureArray{<:Float64}
+    @test F ≈ cat([0 0; 1 1], [0 0; 1 1], dims = 3)
 end
 
 @testset "ACF and PACF" begin
