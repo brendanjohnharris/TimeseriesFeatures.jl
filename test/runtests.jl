@@ -91,13 +91,19 @@ end
                     ["∑x¹", "∑x⁰"])
     𝒇 = FeatureSet([μ, σ]) + 𝒇₁
 
-    x = DimArray(randn(100), (Dim{:x}(1:100),))
+    m = Dict(:a => "yolo")
+    n = "Bert"
+    x = DimArray(randn(100), (Dim{:x}(1:100),); metadata = m, name = n)
     @test σ(x) == σ(x |> vec)
     @test 𝒇(x) == 𝒇(x |> vec)
+    @test DimensionalData.metadata(𝒇(x)) == m
+    @test DimensionalData.name(𝒇(x)) == n
 
-    x = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)))
+    x = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)); name = n, metadata = m)
     @test σ(x) == σ(x |> Matrix)
     @test 𝒇(x).data == 𝒇(x |> Matrix).data
+    @test DimensionalData.metadata(𝒇(x)) == m
+    @test DimensionalData.name(𝒇(x)) == n
 
     μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
                      super = TimeseriesFeatures.zᶠ)
@@ -115,9 +121,12 @@ end
     @test F isa FeatureArray{<:Float64}
     @test F ≈ [0 0; 1 1]
 
-    x = DimArray(randn(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)))
+    x = DimArray(randn(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)); name = n,
+                 metadata = m)
     @test σ(x) == σ(x |> Array)
     @test 𝒇(x).data == 𝒇(x |> Array).data
+    @test DimensionalData.metadata(𝒇(x)) == m
+    @test DimensionalData.name(𝒇(x)) == n
 
     μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
                      super = TimeseriesFeatures.zᶠ)
@@ -130,10 +139,14 @@ end
     @test F isa FeatureArray{<:Float64}
     F = @test_nowarn μ(x)
     @test F isa FeatureArray{<:Float64}
+    @test DimensionalData.metadata(𝒇(x)) == m
+    @test DimensionalData.name(𝒇(x)) == n
 
     F = 𝒇(x)
     @test F isa FeatureArray{<:Float64}
     @test F ≈ cat([0 0; 1 1], [0 0; 1 1], dims = 3)
+    @test DimensionalData.metadata(𝒇(x)) == m
+    @test DimensionalData.name(𝒇(x)) == n
 end
 
 @testset "ACF and PACF" begin

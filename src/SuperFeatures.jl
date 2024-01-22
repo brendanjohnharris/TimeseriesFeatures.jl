@@ -41,11 +41,13 @@ getfeature(𝑓::SuperFeature) = Feature(getmethod(𝑓))
 
 function (𝑓::SuperFeature)(X::DimensionalData.AbstractDimArray)
     FeatureArray(getmethod(𝑓).(getsuper(𝑓)(X)),
-                 (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...))
+                 (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...); refdims = refdims(X),
+                 name = name(X), metadata = metadata(X))
 end
 function (𝑓::SuperFeature)(X::DimensionalData.AbstractDimMatrix)
     FeatureArray(getmethod(𝑓).(getsuper(𝑓)(X)).data,
-                 (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...))
+                 (Dim{:feature}([getname(𝑓)]), dims(X)[2:end]...); refdims = refdims(X),
+                 name = name(X), metadata = metadata(X))
 end
 
 struct SuperFeatureSet <: AbstractFeatureSet
@@ -80,18 +82,21 @@ end
 function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number})::FeatureVector
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇)
+    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; refdims = refdims(x),
+                 name = name(x), metadata = metadata(x))
 end
 function (𝒇::SuperFeatureSet)(x::AbstractArray)
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇)
+    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; refdims = refdims(x),
+                 name = name(x), metadata = metadata(x))
 end
 function (𝒇::SuperFeatureSet)(x::AbstractDimArray)
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
     FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...),
-                 (Dim{:feature}(getnames(𝒇)), dims(x)[2:end]...))
+                 (Dim{:feature}(getnames(𝒇)), dims(x)[2:end]...); refdims = refdims(x),
+                 name = name(x), metadata = metadata(x))
 end
 
 # (𝒇::SuperFeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
