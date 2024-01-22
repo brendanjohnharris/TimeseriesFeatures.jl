@@ -2,11 +2,11 @@
 using DimensionalData
 import Base: ==, show, hash
 export AbstractFeature,
-    Feature,
-    getmethod,
-    getname,
-    getkeywords,
-    getdescription
+       Feature,
+       getmethod,
+       getname,
+       getkeywords,
+       getdescription
 
 abstract type AbstractFeature <: Function end
 
@@ -31,9 +31,14 @@ Base.@kwdef struct Feature <: AbstractFeature
     description::String = ""
     keywords::Vector{String} = [""]
 end
-Feature(method::Function, name=Symbol(method), keywords::Vector{String}=[""], description::String="") = Feature(; method, name, keywords, description)
-Feature(method::Function, name, description::String, keywords::Vector{String}=[""]) = Feature(; method, name, keywords, description)
-
+function Feature(method::Function, name = Symbol(method), keywords::Vector{String} = [""],
+                 description::String = "")
+    Feature(; method, name, keywords, description)
+end
+function Feature(method::Function, name, description::String,
+                 keywords::Vector{String} = [""])
+    Feature(; method, name, keywords, description)
+end
 
 getmethod(𝑓::AbstractFeature) = 𝑓.method
 getname(𝑓::AbstractFeature) = 𝑓.name
@@ -44,8 +49,9 @@ getdescription(𝑓::AbstractFeature) = 𝑓.description
 (𝑓::AbstractFeature)(x::AbstractVector) = getmethod(𝑓)(x)
 (𝑓::AbstractFeature)(X::AbstractVector{<:AbstractArray}) = map(getmethod(𝑓), X)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(getmethod(𝑓), X)
-(𝑓::AbstractFeature)(X::AbstractArray) = mapslices(getmethod(𝑓), X; dims=1)
-(𝑓::AbstractFeature)(𝒳::AbstractDimStack) = map(𝑓, 𝒳)
+function (𝑓::AbstractFeature)(X::AbstractArray)
+    reshape(getmethod(𝑓).(eachcol(X)), 1, size(X)[2:end]...)
+end
 
 # We assume that any features with the same name are the same feature
 hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)
@@ -53,23 +59,25 @@ hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)
 
 commasep(x) = (y = fill(", ", 2 * length(x) - 1); y[1:2:end] .= x; y)
 formatshort(𝑓::AbstractFeature) = [string(getname(𝑓)), " $(getdescription(𝑓))"]
-formatlong(𝑓::AbstractFeature) = [string(typeof(𝑓)) * " ",
-    string(getname(𝑓)),
-    " with fields:\n",
-    "description: ",
-    getdescription(𝑓),
-    "\n$(repeat(' ', 3))keywords: ",
-    "$(commasep(getkeywords(𝑓))...)"]
+function formatlong(𝑓::AbstractFeature)
+    [string(typeof(𝑓)) * " ",
+        string(getname(𝑓)),
+        " with fields:\n",
+        "description: ",
+        getdescription(𝑓),
+        "\n$(repeat(' ', 3))keywords: ",
+        "$(commasep(getkeywords(𝑓))...)"]
+end
 show(𝑓::AbstractFeature) = print(formatlong(𝑓)...)
 show(io::IO, 𝑓::AbstractFeature) = print(io, formatlong(𝑓)...)
 function show(io::IO, m::MIME"text/plain", 𝑓::AbstractFeature)
     s = formatlong(𝑓)
     printstyled(io, s[1])
-    printstyled(io, s[2], color=:light_blue, bold=true)
+    printstyled(io, s[2], color = :light_blue, bold = true)
     printstyled(io, s[3])
-    printstyled(io, s[4], color=:magenta)
+    printstyled(io, s[4], color = :magenta)
     printstyled(io, s[5])
-    printstyled(io, s[6], color=:yellow)
+    printstyled(io, s[6], color = :yellow)
     printstyled(io, s[7])
 end
 
