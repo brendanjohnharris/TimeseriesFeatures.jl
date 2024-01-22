@@ -4,21 +4,21 @@ ac_lags = 1:40
 
 ACF = Feature(x -> autocor(x, ac_lags; demean=true), :ACF, "Autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
 
-ac = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
-    Symbol.(["ac_$ℓ" for ℓ ∈ ac_lags]),
+AC = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
+    Symbol.(["AC_$ℓ" for ℓ ∈ ac_lags]),
     ["Autocorrelation at lag $ℓ" for ℓ ∈ ac_lags],
     [["correlation"] for ℓ ∈ ac_lags],
     ACF) # We compute the ACF just once, and pick off results for each feature
-export ac
+export AC
 
 PACF = Feature(x -> pacf(x, ac_lags; method=:regression), :PACF, "Partial autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
 
-partial_ac = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
-    Symbol.(["partial_ac_$ℓ" for ℓ ∈ ac_lags]),
+Partial_AC = SuperFeatureSet([x -> x[ℓ] for ℓ ∈ eachindex(ac_lags)],
+    Symbol.(["Partial_AC_$ℓ" for ℓ ∈ ac_lags]),
     ["Partial autocorrelation at lag $ℓ (regression method)" for ℓ ∈ ac_lags],
     [["correlation"] for ℓ ∈ ac_lags],
     PACF)
-export partial_ac
+export Partial_AC
 
 
 function firstcrossing(r, threshold=0)
@@ -60,7 +60,7 @@ end
 
 
 """
-    CR_RAD(x, τ=1, doAbs=true)
+    RAD(x, τ=1, doAbs=true)
 Compute the rescaled auto-density, a metric for inferring the
 distance to criticality that is insensitive to uncertainty in the noise strength.
 Calibrated to experiments on the Hopf bifurcation with variable and unknown

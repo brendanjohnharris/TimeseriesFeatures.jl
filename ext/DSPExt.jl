@@ -1,6 +1,6 @@
 using ..DSP
 
-export Analytic_Amplitude, Analytic_Phase, Analytic_Signal, pairwisephaseconsistency, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase
+export Analytic_Amplitude, Analytic_Phase, Analytic_Signal, pairwisephaseconsistency, phaselockingvalue, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase
 
 Analytic_Signal = Feature(hilbert, :Analytic_Signal, ["transform", "phase", "amplitude", "hilbert"], "Analytic signal of the time series, from the Hilbert Transform")
 Analytic_Phase = Feature(x -> x |> hilbert .|> angle, :Analytic_Phase, ["transform", "phase", "hilbert"], "Analytic phase of the time series, from the Hilbert Transform")
