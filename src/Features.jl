@@ -61,12 +61,12 @@ commasep(x) = (y = fill(", ", 2 * length(x) - 1); y[1:2:end] .= x; y)
 formatshort(𝑓::AbstractFeature) = [string(getname(𝑓)), " $(getdescription(𝑓))"]
 function formatlong(𝑓::AbstractFeature)
     [string(typeof(𝑓)) * " ",
-        string(getname(𝑓)),
-        " with fields:\n",
-        "description: ",
-        getdescription(𝑓),
-        "\n$(repeat(' ', 3))keywords: ",
-        "$(commasep(getkeywords(𝑓))...)"]
+     string(getname(𝑓)),
+     " with fields:\n",
+     "description: ",
+     getdescription(𝑓),
+     "\n$(repeat(' ', 3))keywords: ",
+     "$(commasep(getkeywords(𝑓))...)"]
 end
 show(𝑓::AbstractFeature) = print(formatlong(𝑓)...)
 show(io::IO, 𝑓::AbstractFeature) = print(io, formatlong(𝑓)...)

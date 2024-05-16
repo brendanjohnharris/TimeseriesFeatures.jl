@@ -3,6 +3,7 @@ using Statistics
 using LinearAlgebra
 import ..Features: AbstractFeature, Feature, getmethod, getname
 import ..FeatureSets: AbstractFeatureSet, FeatureSet
+import ..FeatureArrays: _featuredim
 import ..PairwiseFeatures: AbstractPairwiseFeature
 using ..DimensionalData
 export MultivariateFeature, MultivariateFeatureSet, AbstractMultivariateFeature,
@@ -45,13 +46,13 @@ const MultivariateFeatureSet = FeatureSet{<:PairwiseOrMultivariate}
 function (𝒇::MultivariateFeatureSet)(x::AbstractMatrix)
     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
                          [ndims(x) + 1, (1:ndims(x))...]),
-             (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(),
+             (_featuredim(getnames(𝒇)), DimensionalData.AnonDim(),
               DimensionalData.AnonDim())) |> FeatureArray
 end
 function (𝒇::MultivariateFeatureSet)(x::DimensionalData.AbstractDimMatrix)
     DimArray(permutedims((cat(FeatureVector([𝑓(x |> collect) for 𝑓 in 𝒇], 𝒇)...;
                               dims = ndims(x) + 1)), [ndims(x) + 1, (1:ndims(x))...]),
-             (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+             (_featuredim(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
 end
 
 # function svdcovariance(X)

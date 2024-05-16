@@ -3,7 +3,7 @@ using Statistics
 export SPI, PairwiseFeature, SPISet, PairwiseFeatureSet, AbstractPairwiseFeature
 import ..Features: AbstractFeature, Feature
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getnames, getname
-import ..FeatureArrays: FeatureArray, FeatureVector
+import ..FeatureArrays: FeatureArray, FeatureVector, _featuredim
 import ..SuperFeatures: AbstractSuper, Super, getsuper, getmethod
 using ..DimensionalData
 export Pearson, Covariance
@@ -37,14 +37,14 @@ function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
     DimArray(𝑓(X.data), (dims(X, 2), dims(X, 2)))
 end
 function (𝑓::AbstractPairwiseFeature)(X::AbstractArray{<:AbstractArray})
-    D = Dim{:feature}([getname(𝑓)])
+    D = _featuredim([getname(𝑓)])
     idxs = CartesianIndices(size(X)[2:end])
     idxs = Iterators.product(idxs, idxs)
     f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
     f.(idxs)
 end
 function (𝑓::AbstractPairwiseFeature)(X::AbstractDimArray{<:AbstractArray})
-    D = Dim{:feature}([getname(𝑓)])
+    D = _featuredim([getname(𝑓)])
     idxs = CartesianIndices(size(X)[2:end])
     idxs = Iterators.product(idxs, idxs)
     f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
@@ -57,13 +57,13 @@ const SPISet = FeatureSet{<:AbstractPairwiseFeature}
 function (𝒇::PairwiseFeatureSet)(x::AbstractMatrix)
     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
                          [ndims(x) + 1, 1:ndims(x)]),
-             (Dim{:feature}(getnames(𝒇)), DimensionalData.AnonDim(),
+             (_featuredim(getnames(𝒇)), DimensionalData.AnonDim(),
               DimensionalData.AnonDim())) |> FeatureArray
 end
 function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
                          [3, 1, 2]),
-             (Dim{:feature}(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+             (_featuredim(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
 end
 
 # TODO Write tests for this

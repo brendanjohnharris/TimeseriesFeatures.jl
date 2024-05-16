@@ -6,27 +6,47 @@ using Test
 using DimensionalData
 using Statistics
 using BenchmarkTools
+@testset "FeatureArray stability" begin
+    x = randn(10)
+    d = Dim{:feature}(DimensionalData.Categorical(Symbol.(1:length(x));
+                                                  order = DimensionalData.Unordered()))
+    @inferred FeatureArray(x, DimensionalData.format((d,), x), (), DimensionalData.NoName(),
+                           DimensionalData.NoMetadata())
+    @inferred FeatureArray(x, DimensionalData.format((d,), x))
+    f = @inferred FeatureArray(x, (d,))
+    f = @inferred FeatureArray(x, Symbol.(1:length(x)))
+end
 
 X = randn(1000, 5)
-
 μ = Feature(mean, :mean, ["distribution"], "μ")
 σ = Feature(std, :std, ["distribution"], "σ")
 𝒇₁ = FeatureSet([sum, length], [:sum, :length], [["distribution"], ["sampling"]],
                 ["∑x¹", "∑x⁰"])
 𝒇 = FeatureSet([μ, σ]) + 𝒇₁
+
 @testset "FeatureSet" begin
     𝒇₂ = @test_nowarn FeatureSet([μ, σ])
     X = randn(100, 2)
     𝒇₃ = 𝒇₁ + 𝒇₂
-    @test_nowarn 𝒇₁(X)
-    @test_nowarn 𝒇₃(X)
+    @inferred 𝒇₁(X)
+    @inferred 𝒇₃(X)
     @test getnames(𝒇₃) == [:sum, :length, :mean, :std]
-    @test_nowarn 𝒇₃[:sum]
+    @inferred 𝒇₃[:sum]
     @test getname(𝒇₃[:sum]) == :sum
     @test all([getname(𝒇₃[x]) == x for x in getnames(𝒇₃)])
-    @test_nowarn 𝒇₃(X)[:sum, :]
+    @inferred 𝒇₃(X)[:sum, :]
     @test 𝒇₃(X)[:sum] == 𝒇₃(X)[:sum, :]
-    @test_nowarn 𝒇₃(X)[[:sum, :length], :]
+
+    F = 𝒇₃(X)[:, 1]
+    𝑓 = [:sum, :length]
+    @inferred getindex(F, 𝑓[1])
+
+    F = 𝒇₃(X)
+    @inferred getindex(F, 𝑓[1])
+    @inferred getindex(F, 1:2)
+    # @inferred getindex(F, 𝑓) # Not typestable
+
+    # @inferred 𝒇₃(X)[[:sum, :length], :]
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :]
     @test 𝒇₁ == 𝒇₃ \ 𝒇₂ == setdiff(𝒇₃, 𝒇₂)
     @test 𝒇₃ == 𝒇₁ ∪ 𝒇₂
@@ -246,7 +266,7 @@ end
 
     a = @benchmark superfeature(𝐱) setup=(superfeature = SuperFeatureSet(Super.(μ,
                                                                                 [
-                                                                                    TimeseriesFeatures.zᶠ,
+                                                                                    TimeseriesFeatures.zᶠ
                                                                                 ]));
                                           𝐱 = rand(1000, 2))
     b = @benchmark [f(𝐱) for f in feature] setup=(feature = [Feature(x -> (zscore(x)),
