@@ -79,24 +79,22 @@ end
 function superloop(f::AbstractFeature, supervals, x)
     f(x) # Just a regular feature of the original time series
 end
-function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number})::FeatureVector
+function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number}; kwargs...)::FeatureVector
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; refdims = refdims(x),
-                 name = name(x), metadata = metadata(x))
+    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; kwargs...)
 end
-function (𝒇::SuperFeatureSet)(x::AbstractArray)
+function (𝒇::SuperFeatureSet)(x::AbstractArray; kwargs...)
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; refdims = refdims(x),
-                 name = name(x), metadata = metadata(x))
+    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; kwargs...)
 end
-function (𝒇::SuperFeatureSet)(x::AbstractDimArray)
+function (𝒇::SuperFeatureSet)(x::AbstractDimArray; kwargs...)
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
     FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...),
                  (_featuredim(getnames(𝒇)), dims(x)[2:end]...); refdims = refdims(x),
-                 name = name(x), metadata = metadata(x))
+                 name = name(x), metadata = metadata(x), kwargs...)
 end
 
 # (𝒇::SuperFeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)

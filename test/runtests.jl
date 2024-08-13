@@ -102,6 +102,9 @@ end
                      super = TimeseriesFeatures.zᶠ)
     𝒇 = SuperFeatureSet([μ, σ])
     @test all(isapprox.(𝒇(x), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
+
+    x = randn(1000)
+    @test 𝒇(x) isa AbstractFeatureVector
 end
 
 @testset "DimArrays" begin
