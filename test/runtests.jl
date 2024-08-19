@@ -43,6 +43,8 @@ X = randn(1000, 5)
     @inferred 𝒇₃(X)[:sum, :]
     @test 𝒇₃(X)[:sum] == 𝒇₃(X)[:sum, :]
 
+    @test hcat(eachslice(𝒇₃(X), dims = 2)...) isa FeatureArray # Check rebuild is ok (does not convert to DimArray
+
     F = 𝒇₃(X)[:, 1]
     𝑓 = [:sum, :length]
     @inferred getindex(F, 𝑓[1])

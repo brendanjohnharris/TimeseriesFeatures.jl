@@ -50,6 +50,11 @@ struct FeatureArray{T, N,
     metadata::Me
 end
 
+function DimensionalData.dimconstructor(::Tuple{<:FeatureDim,
+                                                Vararg{<:DimensionalData.Dimension}})
+    FeatureArray
+end
+
 function FeatureArray(data::A, dims::Tuple{D, Vararg};
                       refdims::R = (), name::Na = NoName(),
                       metadata::M = NoMetadata()) where {D <: FeatureDim,
