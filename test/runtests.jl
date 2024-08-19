@@ -115,7 +115,7 @@ end
     @test 𝒇(x) isa AbstractFeatureVector
     X = randn(1000, 2000)
     @test 𝒇(X) isa AbstractFeatureMatrix
-    if Threads.nthreads ≥ 8 # This will only be faster if the machine has a solid number of threads
+    if Threads.nthreads() ≥ 8 # This will only be faster if the machine has a solid number of threads
         a = @benchmark 𝒇($X)
         _X = eachcol(X)
         b = @benchmark 𝒇.($_X)
