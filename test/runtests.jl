@@ -115,11 +115,13 @@ end
     @test 𝒇(x) isa AbstractFeatureVector
     X = randn(1000, 2000)
     @test 𝒇(X) isa AbstractFeatureMatrix
-    a = @benchmark 𝒇($X)
-    _X = eachcol(X)
-    b = @benchmark 𝒇.($_X)
-    @test median(a.times) ≤ median(b.times) # Check mutlithreading works
-    @test a.allocs ≤ b.allocs
+    if Threads.nthreads ≥ 8 # This will only be faster if the machine has a solid number of threads
+        a = @benchmark 𝒇($X)
+        _X = eachcol(X)
+        b = @benchmark 𝒇.($_X)
+        @test median(a.times) ≤ median(b.times) # Check mutlithreading works
+        @test a.allocs ≤ b.allocs
+    end
 end
 
 @testset "DimArrays" begin
