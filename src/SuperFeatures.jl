@@ -7,6 +7,7 @@ import ..FeatureSets: AbstractFeatureSet, FeatureSet, getmethods, getnames, getd
 import ..FeatureArrays: FeatureVector, AbstractDimArray, _construct, _setconstruct,
                         FeatureArray, _featuredim
 using ..DimensionalData
+using ProgressLogging
 
 export SuperFeature,
        SuperFeatureSet,
@@ -79,20 +80,39 @@ end
 function superloop(f::AbstractFeature, supervals, x)
     f(x) # Just a regular feature of the original time series
 end
+
 function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number}; kwargs...)::FeatureVector
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
     FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; kwargs...)
 end
-function (𝒇::SuperFeatureSet)(x::AbstractArray; kwargs...)
+function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
-    supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; kwargs...)
+    supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
+    threadlog = 0
+    threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
+    @withprogress name="TimeseriesFeatures" begin
+        idxs = CartesianIndices(size(X)[2:end])
+        Threads.@threads for i in idxs
+            supervals[:, i] = vec([f(X[:, i]) for f in ℱ])
+            Threads.threadid() == 1 && (threadlog += 1) % 50 == 0 &&
+                @logprogress threadlog / threadmax
+        end
+        supervals = FeatureArray(supervals, ℱ)
+        f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[:, first(idxs)]]) # Assume same output type for all time series
+        F = similar(f1, (length(𝒇), size(X)[2:end]...))
+        F[:, first(idxs)] .= f1
+        Threads.@threads for i in idxs[2:end]
+            F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[:, i]])
+            Threads.threadid() == 1 && (threadlog += 1) % 50 == 0 &&
+                @logprogress threadlog / threadmax
+        end
+        return FeatureArray(F, 𝒇; kwargs...)
+    end
 end
 function (𝒇::SuperFeatureSet)(x::AbstractDimArray; kwargs...)
-    ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
-    supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...),
+    F = 𝒇(parent(x))
+    FeatureArray(parent(F),
                  (_featuredim(getnames(𝒇)), dims(x)[2:end]...); refdims = refdims(x),
                  name = name(x), metadata = metadata(x), kwargs...)
 end

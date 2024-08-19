@@ -24,6 +24,12 @@ X = randn(1000, 5)
                 ["∑x¹", "∑x⁰"])
 𝒇 = FeatureSet([μ, σ]) + 𝒇₁
 
+# @testset "Feature stability" begin
+#     x = randn(1000) .|> Float32
+#     @inferred getmethod(μ)(x)
+#     @inferred μ(x)
+# end
+
 @testset "FeatureSet" begin
     𝒇₂ = @test_nowarn FeatureSet([μ, σ])
     X = randn(100, 2)
@@ -105,6 +111,13 @@ end
 
     x = randn(1000)
     @test 𝒇(x) isa AbstractFeatureVector
+    X = randn(1000, 2000)
+    @test 𝒇(X) isa AbstractFeatureMatrix
+    a = @benchmark 𝒇($X)
+    _X = eachcol(X)
+    b = @benchmark 𝒇.($_X)
+    @test median(a.times) ≤ median(b.times) # Check mutlithreading works
+    @test a.allocs ≤ b.allocs
 end
 
 @testset "DimArrays" begin
