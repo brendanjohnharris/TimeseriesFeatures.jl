@@ -1,7 +1,7 @@
 name = "TimeseriesFeatures"
 uuid = "f3112013-b923-4dfa-b867-8806c885f823"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
-version = "0.4.3"
+version = "0.4.4"
 
 [deps]
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
@@ -11,10 +11,20 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
+[weakdeps]
+TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
+
+[extensions]
+TimeseriesToolsExt = ["TimeseriesTools"]
+
 [compat]
-DimensionalData = "0.19 - 0.27"
+DimensionalData = "0.19 - 0.28"
 ProgressLogging = "0.1"
 Reexport = "0.2, 1"
 Requires = "1"
 Statistics = "1"
+TimeseriesTools = "0.5"
 julia = "1.9"
+
+[extras]
+TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
