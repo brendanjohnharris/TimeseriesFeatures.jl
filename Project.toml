@@ -1,7 +1,7 @@
 name = "TimeseriesFeatures"
 uuid = "f3112013-b923-4dfa-b867-8806c885f823"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
-version = "0.4.4"
+version = "0.4.5"
 
 [deps]
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
