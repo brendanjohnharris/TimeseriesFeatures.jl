@@ -36,35 +36,56 @@ end
 function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
     DimArray(𝑓(X.data), (dims(X, 2), dims(X, 2)))
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractArray{<:AbstractArray})
+function (𝑓::AbstractPairwiseFeature)(X::AbstractVector{<:AbstractArray})
     D = _featuredim([getname(𝑓)])
-    idxs = CartesianIndices(size(X)[2:end])
+    idxs = eachindex(X)
     idxs = Iterators.product(idxs, idxs)
     f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
     f.(idxs)
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractDimArray{<:AbstractArray})
+function (𝑓::AbstractPairwiseFeature)(X::AbstractArray{<:AbstractArray})
     D = _featuredim([getname(𝑓)])
-    idxs = CartesianIndices(size(X)[2:end])
+    idxs = CartesianIndices(size(X))
+    idxs = Iterators.product(idxs, idxs)
+    f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
+    f.(idxs)
+end
+function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimArray{<:AbstractArray})
+    D = _featuredim([getname(𝑓)])
+    idxs = eachindex(X)
     idxs = Iterators.product(idxs, idxs)
     f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
     DimArray(f.(idxs), (D, D))
+end
+function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimVector{<:AbstractArray})
+    ds = dims(X, 1)
+    rebuild(X, 𝑓(parent(X)), (ds, ds))
 end
 
 const PairwiseFeatureSet = FeatureSet{<:AbstractPairwiseFeature}
 const SPISet = FeatureSet{<:AbstractPairwiseFeature}
 
-function (𝒇::PairwiseFeatureSet)(x::AbstractMatrix)
-    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
-                         [ndims(x) + 1, 1:ndims(x)]),
-             (_featuredim(getnames(𝒇)), DimensionalData.AnonDim(),
-              DimensionalData.AnonDim())) |> FeatureArray
+function (𝒇::PairwiseFeatureSet)(x::AbstractArray)
+    FeatureArray(permutedims(stack([f(x) for f in 𝒇]), [ndims(x) + 1, 1:ndims(x)...]), 𝒇)
 end
-function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
-    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
-                         [3, 1, 2]),
-             (_featuredim(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+function (𝒇::PairwiseFeatureSet)(x::AbstractDimArray)
+    f = stack([f(x) for f in 𝒇])
+    f = FeatureArray(permutedims(f, [ndims(f), (1:(ndims(f) - 1))...]), 𝒇)
+    f = set(f, DimensionalData.AnonDim => dims(x, ndims(x)))
+    f = set(f, DimensionalData.AnonDim => dims(x, ndims(x)))
 end
+
+# function (𝒇::PairwiseFeatureSet)(x::AbstractMatrix)
+#     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
+#                          [ndims(x) + 1, 1:ndims(x)]),
+#              (_featuredim(getnames(𝒇)), DimensionalData.AnonDim(),
+#               DimensionalData.AnonDim())) |> FeatureArray
+# end
+# function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
+#     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
+#                          [3, 1, 2]),
+#              (_featuredim(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+# end
 
 # TODO Write tests for this
 

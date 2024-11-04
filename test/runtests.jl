@@ -1,3 +1,4 @@
+using Distances
 using DSP
 using CausalityTools
 using StatsBase
@@ -6,6 +7,45 @@ using Test
 using DimensionalData
 using Statistics
 using BenchmarkTools
+using TimeseriesTools
+
+@testset "DistancesSPIs" begin
+    x = rand(100)
+    y = rand(100)
+    _F = DistanceSPIs(hcat(x, y))
+    @test size(_F) == (length(DistanceSPIs), 2, 2)
+    @test dims(_F, 2) isa DimensionalData.AnonDim
+
+    X = ToolsArray([x, y], (Var(1:2),))
+    F = DistanceSPIs(X)
+    @test parent(F) == parent(_F)
+    @test dims(F, 2) == dims(X, 1)
+
+    X = ToolsArray(hcat(X...), (𝑡(1:length(x)), Var(1:2)))
+    F = DistanceSPIs(X)
+    @test parent(F) == parent(_F)
+    @test lookup(F, 1) == getnames(DistanceSPIs)
+    @test dims(F, 2) == dims(X, 2)
+end
+
+@testset "TimeseriesTools" begin
+    x = colorednoise(0.1:0.1:10)
+    y = colorednoise(0.1:0.1:10)
+    @test AC(x) == AC(parent(x))
+    @test Pearson(hcat(x, y)) isa AbstractDimArray
+    @test Pearson([x, y]) isa AbstractArray
+
+    # ? Spike train SPIs
+    x = gammarenewal(100, 1.0, 1.0)
+    y = gammarenewal(100, 1.0, 1.0)
+    @test x isa SpikeTrain
+    @test Pearson([x, y]) == Pearson(times.([x, y]))
+    xy = ToolsArray([x, y], (Var(1:2),))
+    C = Pearson(xy)
+    @test lookup(C, 1) == lookup(C, 2) == lookup(xy, 1)
+    @test all(C .== Pearson([x, y]))
+end
+
 @testset "FeatureArray stability" begin
     x = randn(10)
     d = Dim{:feature}(DimensionalData.Categorical(Symbol.(1:length(x));

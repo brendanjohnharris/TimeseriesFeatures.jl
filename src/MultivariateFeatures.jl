@@ -41,7 +41,7 @@ end
 
 const PairwiseOrMultivariate = Union{<:AbstractMultivariateFeature,
                                      <:AbstractPairwiseFeature}
-const MultivariateFeatureSet = FeatureSet{<:PairwiseOrMultivariate}
+const MultivariateFeatureSet = FeatureSet{<:AbstractMultivariateFeature}
 
 function (𝒇::MultivariateFeatureSet)(x::AbstractMatrix)
     DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),

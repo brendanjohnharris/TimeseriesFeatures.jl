@@ -15,6 +15,9 @@ function __init__()
     @require DSP="717857b8-e6f2-59f4-9121-6e50c889abd2" begin
         @eval include("../ext/DSPExt.jl")
     end
+    @require Distances="b4f34e82-e78d-54a5-968a-f98e89d6e8f7" begin
+        @eval include("../ext/DistancesExt.jl")
+    end
 end
 
 include("Features.jl")
