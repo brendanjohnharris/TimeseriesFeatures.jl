@@ -9,8 +9,8 @@ function __init__()
     @require StatsBase="2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91" begin
         @eval include("../ext/StatsBaseExt.jl")
     end
-    @require CausalityTools="5520caf5-2dd7-5c5d-bfcb-a00e56ac49f7" begin
-        @eval include("../ext/CausalityToolsExt.jl")
+    @require Associations="614afb3a-e278-4863-8805-9959372b9ec2" begin
+        @eval include("../ext/AssociationsExt.jl")
     end
     @require DSP="717857b8-e6f2-59f4-9121-6e50c889abd2" begin
         @eval include("../ext/DSPExt.jl")

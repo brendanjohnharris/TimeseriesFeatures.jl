@@ -1,5 +1,5 @@
 using DSP
-using CausalityTools
+using Associations
 using StatsBase
 using TimeseriesFeatures
 using Test
@@ -208,7 +208,7 @@ end
                          ["Autocorrelation at lag $ℓ" for ℓ in lags])
     AC_partial_slow = FeatureSet([x -> pacf(x, [ℓ]; method = :regression)[1]::Float64
                                   for ℓ in lags],
-                                 Symbol.(["AC_partial_$ℓ" for ℓ in lags]),
+                                 Symbol.(["Partial_AC_$ℓ" for ℓ in lags]),
                                  [["correlation"] for ℓ in lags],
                                  ["Partial autocorrelation at lag $ℓ (regression method)"
                                   for ℓ in lags])
@@ -254,15 +254,15 @@ end
     @time cov(X) # Faster again
 end
 
-@testset "CausalityToolsExt" begin
+@testset "AssociationsExt" begin
     X = randn(1000, 2)
-    F = @test_nowarn MI_Lord_NN_20(X)
-    @test F[2] < 0.5
+    F = @test_nowarn MI_Kraskov_NN_20(X)
+    @test F[2] < 0.1
 
-    x = sin.(0.01:0.01:10)
-    y = cos.(0.01:0.01:10)
-    F = @test_nowarn MI_Lord_NN_20([x y])
-    @test F[2] > 7
+    x = sin.(0.01:0.01:10) .^ 2
+    y = cos.(0.01:0.01:10) .^ 3
+    F = @test_nowarn MI_Kraskov_NN_20([x y])
+    @test F[2] > 3
 end
 
 @testset "Super" begin
