@@ -186,10 +186,10 @@ end
 (\)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = setdiff(𝒇, 𝒇′)
 
 # Allow operations between FeatureSet and Feature by converting the Feature
-for p in [:+, :\, :union, :intersect]
+for p in [:+, :\, :setdiff, :union, :intersect]
     eval(quote
-             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, SuperFeatureSet(f))
-             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(SuperFeatureSet(f), 𝒇)
+             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
+             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
          end)
 end
 

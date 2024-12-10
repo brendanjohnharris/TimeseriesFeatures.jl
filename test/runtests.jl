@@ -71,6 +71,9 @@ end
     @test 𝒇₁ ∪ 𝒇₂ isa FeatureSet
     @test 𝒇₂ == 𝒇₃ ∩ 𝒇₂ == intersect(𝒇₃, 𝒇₂)
     @test 𝒇₃ ∩ 𝒇₂ isa FeatureSet
+
+    @test 𝒇₁ + μ isa FeatureSet
+    @test μ + 𝒇₁ isa FeatureSet
 end
 
 @testitem "Multidimensional arrays" setup=[Setup] begin
