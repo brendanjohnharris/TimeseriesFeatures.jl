@@ -1,4 +1,4 @@
-@reexport module PairwiseFeatures
+module PairwiseFeatures
 using Statistics
 export SPI, PairwiseFeature, SPISet, PairwiseFeatureSet, AbstractPairwiseFeature
 import ..Features: AbstractFeature, Feature

@@ -1,4 +1,4 @@
-@reexport module MultivariateFeatures
+module MultivariateFeatures
 using Statistics
 using LinearAlgebra
 import ..Features: AbstractFeature, Feature, getmethod, getname

@@ -1,14 +1,14 @@
-@reexport module FeatureSets
+module FeatureSets
 import ..Features: AbstractFeature, Feature, getname, getkeywords, getdescription,
                    formatshort
 using DimensionalData
-import Base: show, size, getindex, setindex!, similar, eltype, deleteat!, filter, union,
-             intersect, convert, promote_rule, +, \
+import Base: show, size, getindex, setindex!, similar, eltype, deleteat!, filter, convert,
+             promote_rule
 
 export AbstractFeatureSet, FeatureSet,
        getfeatures, getmethods, getnames, getkeywords, getdescriptions
 
-abstract type AbstractFeatureSet <: AbstractVector{Function} end
+abstract type AbstractFeatureSet <: AbstractVector{AbstractFeature} end
 
 """
     FeatureSet(methods, [names, keywords, descriptions])
@@ -39,7 +39,7 @@ G = 𝒈₂(X) # The intersection contains the :sum of the first argument to ∩
 """
 struct FeatureSet{T} <: AbstractFeatureSet where {T}
     features::Vector{T}
-    FeatureSet(features::Vector{T}) where {T <: AbstractFeature} = new{T}(features)
+    FeatureSet(features::AbstractVector{T}) where {T <: AbstractFeature} = new{T}(features)
 end
 
 function FeatureSet(methods::AbstractVector{<:Function}, args...)
@@ -78,32 +78,16 @@ function setindex!(𝒇::AbstractFeatureSet, f, i::Int)
 end
 
 IndexStyle(::AbstractFeatureSet) = IndexLinear()
-eltype(::AbstractFeatureSet) = AbstractFeature
+eltype(::FeatureSet{T}) where {T} = T
+eltype(::Type{FeatureSet{T}}) where {T} = T
 
-function similar(::AbstractFeatureSet, ::Type{S}, dims::Dims) where {S}
-    FeatureSet(Vector{AbstractFeature}(undef, dims[1]))
+function similar(::T, ::Type{S}, dims::Dims) where {S, T <: AbstractFeatureSet}
+    FeatureSet(Vector{eltype(T)}(undef, dims[1]))
 end
 
 deleteat!(𝒇::AbstractFeatureSet, args...) = deleteat!(𝒇.features, args...)
 
-filter(f, 𝒇::AbstractFeatureSet) = FeatureSet(filter(f, getfeatures(𝒇)))
-
-function (+)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet)
-    FeatureSet([vcat(g(𝒇), g(𝒇′))
-                for g in [getfeatures,
-                        getnames,
-                        getkeywords,
-                        getdescriptions]]...)
-end
-(\)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = setdiff(𝒇, 𝒇′)
-
-# Allow operations between FeatureSet and Feature by converting the Feature
-for p in [:+, :\, :union, :intersect]
-    eval(quote
-             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
-             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
-         end)
-end
+filter(f, 𝒇::T) where {T <: AbstractFeatureSet} = T(filter(f, getfeatures(𝒇)))
 
 (𝒇::AbstractFeatureSet)(x, f::Symbol) = 𝒇[f](x)
 (𝒇::AbstractFeatureSet)(𝒳::AbstractDimStack) = map(𝒇, 𝒳)
@@ -112,6 +96,10 @@ format(𝒇::AbstractFeatureSet) = "$(typeof(𝒇)) with features: $(getnames(�
 show(𝒇::AbstractFeatureSet) = 𝒇 |> format |> show
 show(io::IO, 𝒇::AbstractFeatureSet) = show((io,), 𝒇 |> format)
 function show(io::IO, m::MIME"text/plain", 𝒇::AbstractFeatureSet)
+    if length(𝒇) == 0
+        printstyled(io, "Empty FeatureSet", color = :light_red, bold = true)
+        return
+    end
     print("$(typeof(𝒇)) with features:\n")
     for 𝑓 in 𝒇[1:(end - 1)]
         s = formatshort(𝑓)

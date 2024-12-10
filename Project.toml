@@ -1,27 +1,35 @@
 name = "TimeseriesFeatures"
 uuid = "f3112013-b923-4dfa-b867-8806c885f823"
 authors = ["brendanjohnharris <brendanjohnharris@gmail.com> and contributors"]
-version = "0.4.4"
+version = "0.5.0"
 
 [deps]
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"
-Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
-[compat]
-Associations = "4"
-julia = "1.9"
-DimensionalData = "0.19 - 0.29"
-ProgressLogging = "0.1"
-Reexport = "0.2, 1"
-Requires = "1"
-Statistics = "1"
-
 [weakdeps]
 Associations = "614afb3a-e278-4863-8805-9959372b9ec2"
+TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+
+[extensions]
+TimeseriesToolsExt = ["TimeseriesTools", "StatsBase"]
+StatsBaseExt = ["StatsBase"]
+
+[compat]
+Associations = "4"
+DimensionalData = "0.19 - 0.29"
+ProgressLogging = "0.1"
+Requires = "1"
+Statistics = "1"
+TimeseriesTools = "0.6.1"
+StatsBase = "0.30 - 0.34"
+julia = "1.9"
 
 [extras]
 Associations = "614afb3a-e278-4863-8805-9959372b9ec2"
+TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"

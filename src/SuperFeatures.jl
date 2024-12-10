@@ -1,12 +1,12 @@
-@reexport module SuperFeatures
+module SuperFeatures
 
-import ..getmethod
 import ..Features: AbstractFeature, Feature, getmethod, getname, getkeywords, getdescription
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getmethods, getnames, getdescriptions,
                       getkeywords
 import ..FeatureArrays: FeatureVector, AbstractDimArray, _construct, _setconstruct,
                         FeatureArray, _featuredim
 using ..DimensionalData
+import Base: union, intersect, setdiff, convert, promote_rule, cat, +, \
 using ProgressLogging
 
 export SuperFeature,
@@ -24,6 +24,7 @@ Base.@kwdef struct SuperFeature <: AbstractSuperFeature
     keywords::Vector{String} = [""]
     super::AbstractFeature
 end
+Identity = Feature(identity, :identity, ["transformation"], "Identity function")
 function SuperFeature(method::Function, name = Symbol(method),
                       keywords::Vector{String} = [""], description::String = "";
                       super::AbstractFeature)
@@ -33,6 +34,10 @@ function SuperFeature(method::Function, name, description::String,
                       keywords::Vector{String} = [""]; super::AbstractFeature)
     SuperFeature(; super, method, name, keywords, description)
 end
+function SuperFeature(f::Feature)
+    SuperFeature(f.method, f.name, f.description, f.keywords, Identity)
+end
+SuperFeature(f::SuperFeature) = f
 getsuper(𝒇::AbstractSuperFeature) = 𝒇.super
 getsuper(::AbstractFeature) = ()
 getfeature(𝑓::SuperFeature) = Feature(getmethod(𝑓))
@@ -51,19 +56,17 @@ function (𝑓::SuperFeature)(X::DimensionalData.AbstractDimMatrix)
                  name = name(X), metadata = metadata(X))
 end
 
-struct SuperFeatureSet <: AbstractFeatureSet
-    features::AbstractVector
-    SuperFeatureSet(features::Vector{T}) where {T <: AbstractFeature} = new(features)
-end
+const SuperFeatureSet = FeatureSet{<:AbstractSuperFeature}
 
 # SuperPairwiseFeatureSet = SuperFeatureSet
-
+SuperFeatureSet(𝒇::AbstractVector{<:AbstractSuperFeature}) = FeatureSet(𝒇)
+SuperFeatureSet(𝒇::FeatureSet) = SuperFeatureSet(SuperFeature.(𝒇))
 function SuperFeatureSet(methods::AbstractVector{<:Function}, names::Vector{Symbol},
                          descriptions::Vector{String}, keywords, super)
-    SuperFeature.(methods, names, descriptions, keywords, super) |> SuperFeatureSet
+    SuperFeature.(methods, names, descriptions, keywords, super) |> FeatureSet
 end
 function SuperFeatureSet(methods::Function, args...)
-    [SuperFeature(methods, args...)] |> SuperFeatureSet
+    [SuperFeature(methods, args...)] |> FeatureSet
 end
 function SuperFeatureSet(; methods, names, keywords, descriptions, super)
     SuperFeatureSet(methods, names, keywords, descriptions, super)
@@ -72,7 +75,7 @@ SuperFeatureSet(f::AbstractFeature) = SuperFeatureSet([f])
 
 # SuperFeatureSet(𝒇::Vector{Feature}) = SuperFeatureSet(getmethods(𝒇), getnames(𝒇), getdescriptions(𝒇), getkeywords(𝒇), getsuper(first(𝒇)))
 getindex(𝒇::AbstractFeatureSet, I) = SuperFeatureSet(getfeatures(𝒇)[I])
-SuperFeatureSet(𝒇::Vector{Feature}) = FeatureSet(𝒇) # Just a regular feature set
+# SuperFeatureSet(𝒇::Vector{Feature}) = FeatureSet(𝒇) # Just a regular feature set
 
 function superloop(f::AbstractSuperFeature, supervals, x)
     getfeature(f)(supervals[getname(getsuper(f))])
@@ -82,12 +85,12 @@ function superloop(f::AbstractFeature, supervals, x)
 end
 
 function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number}; kwargs...)::FeatureVector
-    ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
+    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
     supervals = Dict(getname(f) => f(x) for f in ℱ)
     FeatureArray(vcat([superloop(𝑓, supervals, x) for 𝑓 in 𝒇]...), 𝒇; kwargs...)
 end
 function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
-    ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
+    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
     supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
     threadlog = 0
     threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
@@ -158,5 +161,36 @@ end
 # function (𝑓::AbstractSuper{F,S})(x::AbstractArray{<:AbstractArray}) where {F<:AbstractFeature,S<:AbstractFeature}
 #     map(getfeature(𝑓) ∘ getsuper(𝑓), x)
 # end
+
+# * Feature set arithmetic
+function promote_rule(::Type{<:SuperFeatureSet}, ::Type{<:FeatureSet})
+    SuperFeatureSet{SuperFeature}
+end
+convert(::Type{SuperFeature}, x::Feature) = SuperFeature(x)
+convert(::Type{AbstractFeature}, x::Feature) = SuperFeature(x)
+convert(::Type{AbstractFeatureSet}, x::FeatureSet) = SuperFeatureSet(x)
+
+(+)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = vcat(𝒇, 𝒇′)
+function intersect(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+    T = promote_type(A, B) |> eltype
+    intersect(T.(𝒇), T.(𝒇′)) |> FeatureSet
+end
+function union(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+    T = promote_type(A, B) |> eltype
+    union(T.(𝒇), T.(𝒇′)) |> FeatureSet
+end
+function setdiff(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+    T = promote_type(A, B) |> eltype
+    setdiff(T.(𝒇), T.(𝒇′)) |> FeatureSet
+end
+(\)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = setdiff(𝒇, 𝒇′)
+
+# Allow operations between FeatureSet and Feature by converting the Feature
+for p in [:+, :\, :union, :intersect]
+    eval(quote
+             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, SuperFeatureSet(f))
+             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(SuperFeatureSet(f), 𝒇)
+         end)
+end
 
 end # module

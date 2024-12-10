@@ -1,4 +1,4 @@
-@reexport module Features
+module Features
 using DimensionalData
 import Base: ==, show, hash
 export AbstractFeature,
@@ -39,6 +39,7 @@ function Feature(method::Function, name, description::String,
                  keywords::Vector{String} = [""])
     Feature(; method, name, keywords, description)
 end
+Feature(f::AbstractFeature) = f
 
 getmethod(𝑓::AbstractFeature) = 𝑓.method
 getname(𝑓::AbstractFeature) = 𝑓.name
