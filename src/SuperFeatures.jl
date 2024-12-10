@@ -94,12 +94,18 @@ function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
     supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
     threadlog = 0
     threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
+    l = Threads.ReentrantLock()
     @withprogress name="TimeseriesFeatures" begin
         idxs = CartesianIndices(size(X)[2:end])
         Threads.@threads for i in idxs
             supervals[:, i] = vec([f(X[:, i]) for f in ℱ])
-            Threads.threadid() == 1 && (threadlog += 1) % 50 == 0 &&
+            lock(l)
+            try
+                threadlog += 1
                 @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
         end
         supervals = FeatureArray(supervals, ℱ)
         f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[:, first(idxs)]]) # Assume same output type for all time series
@@ -107,8 +113,48 @@ function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
         F[:, first(idxs)] .= f1
         Threads.@threads for i in idxs[2:end]
             F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[:, i]])
-            Threads.threadid() == 1 && (threadlog += 1) % 50 == 0 &&
+            lock(l)
+            try
+                threadlog += 1
                 @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
+        end
+        return FeatureArray(F, 𝒇; kwargs...)
+    end
+end
+function (𝒇::SuperFeatureSet)(X::AbstractVector{<:AbstractVector}; kwargs...)
+    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
+    supervals = Array{Any}(undef, (length(ℱ), length(X))) # Can we be more specific with the types?
+    threadlog = 0
+    threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
+    l = Threads.ReentrantLock()
+    @withprogress name="TimeseriesFeatures" begin
+        idxs = eachindex(X)
+        Threads.@threads for i in idxs
+            supervals[:, i] = vec([f(X[i]) for f in ℱ])
+            lock(l)
+            try
+                threadlog += 1
+                @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
+        end
+        supervals = FeatureArray(supervals, ℱ)
+        f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[first(idxs)]]) # Assume same output type for all time series
+        F = similar(f1, (length(𝒇), length(X)))
+        F[:, first(idxs)] .= f1
+        Threads.@threads for i in idxs[2:end]
+            F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[i]])
+            lock(l)
+            try
+                threadlog += 1
+                @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
         end
         return FeatureArray(F, 𝒇; kwargs...)
     end

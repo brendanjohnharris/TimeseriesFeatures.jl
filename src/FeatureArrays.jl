@@ -183,7 +183,7 @@ getdim(X::AbstractDimArray, dim) = dims(X, dim).val
     getnames(𝒇::FeatureArray)
 Get the names of features represented in the feature vector or array 𝒇 as a vector of symbols.
 """
-featureDims(A::AbstractDimArray) = getdim(A, :feature)
+featureDims(A::AbstractDimArray) = getdim(A, Feat)
 getnames(A::AbstractFeatureArray) = featureDims(A)
 
 timeseriesDims(A::AbstractDimArray) = getdim(A, :timeseries)
@@ -233,8 +233,13 @@ function (𝒇::FeatureSet)(X::AbstractArray)
     @withprogress name="TimeseriesFeatures" begin
         Threads.@threads for i in CartesianIndices(size(F)[2:end])
             F[:, Tuple(i)...] = vec(𝒇(X[:, Tuple(i)...]))
-            Threads.threadid() == 1 && (threadlog += 1) % 50 == 0 &&
+            lock(l)
+            try
+                threadlog += 1
                 @logprogress threadlog / threadmax
+            finally
+                unlock(l)
+            end
         end
     end
     FeatureArray(F, 𝒇)

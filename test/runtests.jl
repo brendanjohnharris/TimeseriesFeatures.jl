@@ -91,6 +91,17 @@ end
     @test size(F) == (1, 3, 3)
 end
 
+@testitem "Vector of vectors" setup=[Setup] begin
+    X = [randn(100) for _ in 1:9]
+    @test_nowarn 𝒇₁(X)
+    @test_nowarn 𝒇₃(X)
+    @test_nowarn 𝒇₃[:sum]
+    @test_nowarn 𝒇₃(X)[:sum, :, :]
+    @test 𝒇₃(X)[:sum] == 𝒇₃(X)[:sum, :, :]
+    @test_nowarn 𝒇₃(X)[[:sum, :length], :, :]
+    @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :, :]
+end
+
 @testitem "FeatureArray indexing" setup=[Setup] begin
     𝑓s = [:mean, :std]
     𝑓 = FeatureSet([μ, σ])
@@ -127,7 +138,13 @@ end
     x = randn(1000)
     @test 𝒇(x) isa AbstractFeatureVector
     X = randn(1000, 2000)
+    z = 𝒇(X)
+    @test z isa AbstractFeatureMatrix
+
+    X = collect.(eachcol(X)) # Vector of vectors
     @test 𝒇(X) isa AbstractFeatureMatrix
+    @test z == 𝒇(X)
+
     if Threads.nthreads() ≥ 8 # This will only be faster if the machine has a solid number of threads
         a = @benchmark 𝒇($X)
         _X = eachcol(X)
