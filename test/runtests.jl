@@ -1,6 +1,8 @@
 using Test
 using TestItems
 
+@run_package_tests
+
 @testsnippet Setup begin
     using DimensionalData
     using Statistics
