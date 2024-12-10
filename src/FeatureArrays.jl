@@ -229,7 +229,7 @@ end
 function (𝒇::FeatureSet)(X::AbstractArray)
     F = Array{Float64}(undef, (length(𝒇), size(X)[2:end]...))
     threadlog = 0
-    threadmax = prod(size(F)[2:end]) / Threads.nthreads()
+    threadmax = prod(size(F)[2:end])
     l = Threads.ReentrantLock()
     @withprogress name="TimeseriesFeatures" begin
         Threads.@threads for i in CartesianIndices(size(F)[2:end])

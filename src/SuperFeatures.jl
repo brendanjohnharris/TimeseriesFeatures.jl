@@ -93,7 +93,7 @@ function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
     ℱ = getsuper.(𝒇) |> unique |> FeatureSet
     supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
     threadlog = 0
-    threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
+    threadmax = 2.0 .* prod(size(X)[2:end])
     l = Threads.ReentrantLock()
     @withprogress name="TimeseriesFeatures" begin
         idxs = CartesianIndices(size(X)[2:end])
@@ -128,7 +128,7 @@ function (𝒇::SuperFeatureSet)(X::AbstractVector{<:AbstractVector}; kwargs...)
     ℱ = getsuper.(𝒇) |> unique |> FeatureSet
     supervals = Array{Any}(undef, (length(ℱ), length(X))) # Can we be more specific with the types?
     threadlog = 0
-    threadmax = 2.0 .* prod(size(X)[2:end]) / Threads.nthreads()
+    threadmax = 2.0 .* prod(size(X)[2:end])
     l = Threads.ReentrantLock()
     @withprogress name="TimeseriesFeatures" begin
         idxs = eachindex(X)
