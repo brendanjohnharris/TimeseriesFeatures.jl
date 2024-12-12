@@ -25,18 +25,14 @@ The method on vectors will be applied column-wise to `Matrix` inputs, regardless
 getdescription(𝑓) # "Sum of time-series values"
 ```
 """
-Base.@kwdef struct Feature <: AbstractFeature
-    method::Function
+Base.@kwdef struct Feature{F} <: AbstractFeature where {F <: Function}
+    method::F
     name::Symbol = Symbol(method)
     description::String = ""
     keywords::Vector{String} = [""]
 end
-function Feature(method::Function, name = Symbol(method), keywords::Vector{String} = [""],
-                 description::String = "")
-    Feature(; method, name, keywords, description)
-end
-function Feature(method::Function, name, description::String,
-                 keywords::Vector{String} = [""])
+function Feature(method::F, name = Symbol(method), keywords::Vector{String} = [""],
+                 description::String = "") where {F <: Function}
     Feature(; method, name, keywords, description)
 end
 Feature(f::AbstractFeature) = f
@@ -46,12 +42,13 @@ getname(𝑓::AbstractFeature) = 𝑓.name
 getnames(𝑓::AbstractFeature) = [𝑓.name]
 getkeywords(𝑓::AbstractFeature) = 𝑓.keywords
 getdescription(𝑓::AbstractFeature) = 𝑓.description
+fullmethod(𝑓::AbstractFeature) = getmethod(𝑓)
 
-(𝑓::AbstractFeature)(x::AbstractVector) = getmethod(𝑓)(x)
-(𝑓::AbstractFeature)(X::AbstractVector{<:AbstractArray}) = map(getmethod(𝑓), X)
-(𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(getmethod(𝑓), X)
-function (𝑓::AbstractFeature)(X::AbstractArray)
-    reshape(𝑓.(eachslice(X, dims = Tuple(2:ndims(X)))), 1, size(X)[2:end]...)
+(𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> fullmethod(𝑓)
+(𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(𝑓, X)
+function (𝑓::AbstractFeature)(X::AbstractArray; drop = true)
+    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
+    map(𝑓, eachslice(X; dims, drop))
 end
 
 # We assume that any features with the same name are the same feature

@@ -77,7 +77,7 @@ end
 end
 
 @testitem "Multidimensional arrays" setup=[Setup] begin
-    X = randn(100, 3, 3)
+    X = rand(100, 3, 3)
     @test_nowarn 𝒇₁(X)
     @test_nowarn 𝒇₃(X)
     @test_nowarn 𝒇₃[:sum]
@@ -87,8 +87,8 @@ end
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :, :]
 
     F = @test_nowarn μ(X)
-    @test F isa Array{<:Float64, 3}
-    @test size(F) == (1, 3, 3)
+    @test F isa Array{<:Float64, 2} # Extra dims are dropped
+    @test size(F) == (3, 3)
 end
 
 @testitem "Vector of vectors" setup=[Setup] begin
@@ -199,10 +199,11 @@ end
     x = DimArray(randn(100), (Dim{:x}(1:100),); metadata = m, name = n)
     @test σ(x) == σ(x |> vec)
     @test 𝒇(x) == 𝒇(x |> vec)
+    @inferred 𝒇(x)
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
 
-    x = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)); name = n, metadata = m)
+    x = DimArray(rand(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)); name = n, metadata = m)
     @test σ(x) == σ(x |> Matrix)
     @test 𝒇(x).data == 𝒇(x |> Matrix).data
     @test DimensionalData.metadata(𝒇(x)) == m
@@ -215,16 +216,16 @@ end
     𝒇 = SuperFeatureSet([μ, σ])
 
     F = @test_nowarn σ(x)
+    @test F isa DimArray{<:Float64}
     @test all(F .≈ 1.0)
-    @test F isa FeatureArray{<:Float64}
     F = @test_nowarn μ(x)
-    @test F isa FeatureArray{<:Float64}
+    @test all(abs.(F) .< 1e-10)
 
     F = 𝒇(x)
     @test F isa FeatureArray{<:Float64}
     @test F ≈ [0 0; 1 1]
 
-    x = DimArray(randn(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)); name = n,
+    x = DimArray(rand(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)); name = n,
                  metadata = m)
     @test σ(x) == σ(x |> Array)
     @test 𝒇(x).data == 𝒇(x |> Array).data
@@ -238,6 +239,7 @@ end
     𝒇 = SuperFeatureSet([μ, σ])
 
     F = @test_nowarn σ(x)
+    @inferred σ(x)
     @test all(F .≈ 1.0)
     @test F isa FeatureArray{<:Float64}
     F = @test_nowarn μ(x)
@@ -245,7 +247,10 @@ end
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
 
-    F = 𝒇(x)
+    F = @inferred 𝒇(x)
+    y = parent(x)
+    @inferred 𝒇(y)
+
     @test F isa FeatureArray{<:Float64}
     @test F ≈ cat([0 0; 1 1], [0 0; 1 1], dims = 3)
     @test DimensionalData.metadata(𝒇(x)) == m
@@ -336,7 +341,7 @@ end
     μ_z = @test_nowarn Super(μ, TimeseriesFeatures.zᶠ)
     σ_z = @test_nowarn Super(σ, TimeseriesFeatures.zᶠ)
     @test μ_z isa Super
-    @test μ_z(𝐱)≈[0 0] atol=1e-13
+    @test μ_z(𝐱)≈[0, 0] atol=1e-13
     𝒇 = SuperFeatureSet([μ_z, σ_z])
     @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
 
@@ -381,6 +386,16 @@ end
     X = [sin.(x) cos.(x)]
     F = PPC_Analytic_Phase(X)
     @test F≈[1 1; 1 1] rtol=1e-3
+
+    @test false # This needs more tests
+    # (𝑓::AbstractPairwiseFeature)(x::AbstractVector) = getmethod(𝑓)(x, x)
+    # function (𝑓::AbstractPairwiseFeature)(X::AbstractArray)
+    #     idxs = CartesianIndices(size(X)[2:end])
+    #     idxs = Iterators.product(idxs, idxs)
+    #     f = i -> getmethod(𝑓)(X[:, first(i)], X[:, last(i)])
+    #     f.(idxs)
+    # end
+    # function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
 end
 
 @testitem "TimeseriesToolsExt" setup=[Setup] begin
@@ -393,4 +408,33 @@ end
     τ = TimeseriesTools.timescale(x) # This is 1/4 the period; i.e. the time shift it requires to become anti-phase
     y = TimeseriesTools.Operators.ℬ(x, Int(τ ÷ step(x)))
     @test cor(x, y)≈0 atol=0.05
+end
+
+@testitem "Type stability" setup=[Setup] begin
+    𝒇s = SuperFeature.(𝒇₃) |> SuperFeatureSet
+    x = randn(1000) .|> Float32
+    xx = [randn(1000) for _ in 1:10]
+    X = randn(1000, 10)
+
+    # * Features
+    @inferred getmethod(μ)(x)
+    @inferred μ(x)
+    @inferred μ(xx)
+    @inferred μ(X)
+
+    # * Super Features
+    @inferred SuperFeature(μ, TimeseriesFeatures.zᶠ)
+    𝑓 = SuperFeature(μ, TimeseriesFeatures.zᶠ)
+    @test 𝑓(rand(1000))≈0.0 atol=1e-10
+    @inferred getmethod(𝑓)(x)
+    @inferred getsuper(𝑓)(x)
+    @inferred 𝑓(x)
+    @inferred 𝑓(xx)
+    @test all(abs.(𝑓(xx)) .< 1e-10)
+    @inferred 𝑓(X)
+    @test all(abs.(𝑓(X)) .< 1e-10)
+
+    # * FeatureSets (x, xx, X)
+
+    # * SuperFeatureSets (x, xx, X)
 end

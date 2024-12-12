@@ -36,19 +36,16 @@ end
 function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
     DimArray(𝑓(X.data), (dims(X, 2), dims(X, 2)))
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractArray{<:AbstractArray})
-    D = _featuredim([getname(𝑓)])
-    idxs = CartesianIndices(size(X)[2:end])
+function (𝑓::AbstractPairwiseFeature)(X::AbstractVector{<:AbstractVector})
+    # D = _featuredim([getname(𝑓)])
+    idxs = CartesianIndices(X)
     idxs = Iterators.product(idxs, idxs)
     f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
     f.(idxs)
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractDimArray{<:AbstractArray})
-    D = _featuredim([getname(𝑓)])
-    idxs = CartesianIndices(size(X)[2:end])
-    idxs = Iterators.product(idxs, idxs)
-    f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
-    DimArray(f.(idxs), (D, D))
+function (𝑓::AbstractPairwiseFeature)(X::AbstractDimVector{<:AbstractVector})
+    D = dims(X, 1) # _featuredim([getname(𝑓)])
+    DimArray(𝑓(parent(X)), (D, D))
 end
 
 const PairwiseFeatureSet = FeatureSet{<:AbstractPairwiseFeature}
@@ -72,11 +69,11 @@ Pearson = SPI((x, y) -> cor(x, y), :Pearson, "Pearson correlation coefficient",
               ["correlation"])
 Covariance = SPI((x, y) -> cov(x, y), :Pearson, "Sample covariance", ["covariance"])
 
-function (𝑓::AbstractSuper{F, S})(x::AbstractVector) where {F <: AbstractPairwiseFeature,
-                                                            S <: AbstractFeature}
-    y = getsuper(𝑓)(x)
-    getfeature(𝑓)(y, y)
-end
+# function (𝑓::AbstractSuper{F, S})(x::AbstractVector) where {F <: AbstractPairwiseFeature,
+#                                                             S <: AbstractFeature}
+#     y = getsuper(𝑓)(x)
+#     getfeature(𝑓)(y, y)
+# end
 # function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number})::FeatureVector
 #     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
 #     supervals = ℱ(x)

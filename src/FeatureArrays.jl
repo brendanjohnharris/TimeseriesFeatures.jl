@@ -89,6 +89,12 @@ function FeatureArray(data::AbstractArray, features::Union{Tuple{Symbol}, Vector
                  (_featuredim(features),
                   [Dim{x.first}(x.second[:]) for x in otherdims]...); kwargs...)
 end
+function LabelledFeatureArray(args...; x::AbstractArray, kwargs...)
+    FeatureArray(args...;
+                 name = _name(x),
+                 metadata = DimensionalData.metadata(x),
+                 refdims = DimensionalData.refdims(x), kwargs...)
+end
 
 FeatureArray(D::DimArray) = FeatureArray(D.data, D.dims, D.refdims, D.name, D.metadata)
 # DimensionalData.DimArray(D::FeatureArray) = DimArray(D.data, D.dims, D.refdims, D.name, D.metadata)
@@ -204,66 +210,78 @@ function sortbydim(F::AbstractDimArray, dim; rev = false)
     return F[indx...]
 end
 
-(𝒇::FeatureSet)(x::AbstractVector) = FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)
+_name(x) = DimensionalData.NoName()
+_name(x::AbstractDimArray) = DimensionalData.name(x)
+_name(x::AbstractDimStack) = DimensionalData.name(x)
+function (𝒇::FeatureSet)(x::T) where {T <: AbstractVector{<:Number}}
+    y = [Float64(𝑓(x)) for 𝑓 in 𝒇]::Vector{Float64} # Reduce flexibility for type stability
+    y = LabelledFeatureArray(y, 𝒇; x)
+end
 
 function (𝒇::FeatureSet)(X::AbstractVector{<:AbstractVector})
-    F = Array{Float64}(undef, (length(𝒇), length(X)))
+    F = Array{Float64}(undef, (length(𝒇), length(X))) # Can we relax this Float64?
     @withprogress name="TimeseriesFeatures" begin
         threadlog = 0
         threadmax = prod(size(F, 2))
-        l = Threads.ReentrantLock()
+        l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
         Threads.@threads for i in eachindex(X)
             F[:, Tuple(i)...] .= 𝒇(X[i])
-            lock(l)
-            try
-                threadlog += 1
-                @logprogress threadlog / threadmax
-            finally
-                unlock(l)
+            if !isnothing(l) # Then it is worth reporting
+                lock(l)
+                try
+                    threadlog += 1
+                    @logprogress threadlog / threadmax
+                finally
+                    unlock(l)
+                end
             end
         end
     end
-    FeatureArray(F, 𝒇)
+    LabelledFeatureArray(F, 𝒇; x = X)
 end
 
 function (𝒇::FeatureSet)(X::AbstractArray)
     F = Array{Float64}(undef, (length(𝒇), size(X)[2:end]...))
     threadlog = 0
     threadmax = prod(size(F)[2:end])
-    l = Threads.ReentrantLock()
+    l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
     @withprogress name="TimeseriesFeatures" begin
         Threads.@threads for i in CartesianIndices(size(F)[2:end])
             F[:, Tuple(i)...] = vec(𝒇(X[:, Tuple(i)...]))
-            lock(l)
-            try
-                threadlog += 1
-                @logprogress threadlog / threadmax
-            finally
-                unlock(l)
+            if !isnothing(l)
+                lock(l)
+                try
+                    threadlog += 1
+                    @logprogress threadlog / threadmax
+                finally
+                    unlock(l)
+                end
             end
         end
     end
-    FeatureArray(F, 𝒇)
+    LabelledFeatureArray(F, 𝒇; x = X)
 end
 
-# _construct(𝑓::AbstractFeature, X::AbstractDimArray{T,1}) where {T} = 𝑓(X.data)
+##  _construct(𝑓::AbstractFeature, X::AbstractDimArray{T,1}) where {T} = 𝑓(X.data)
+
 (𝑓::AbstractFeature)(𝒳::AbstractDimStack) = map(𝑓, 𝒳)
-function _construct(𝑓::AbstractFeature, X::DimensionalData.AbstractDimMatrix)
-    DimArray(𝑓(X.data), (_featuredim([getname(𝑓)]), dims(X)[2:end]...);
-             refdims = refdims(X),
-             name = DimensionalData.name(X), metadata = DimensionalData.metadata(X))
-end
-(𝑓::AbstractFeature)(X::DimensionalData.AbstractDimMatrix) = _construct(𝑓, X)
-function _setconstruct(𝒇::AbstractFeatureSet, X::DimensionalData.AbstractDimArray)
-    FeatureArray(𝒇(X.data), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
-                 refdims = refdims(X),
-                 name = name(X), metadata = metadata(X))
-end
-function _setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray)
-    FeatureArray(𝒇(X), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
-                 refdims = refdims(X),
-                 name = name(X), metadata = metadata(X))
-end
-(𝒇::FeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
+# function _construct(𝑓::AbstractFeature, X::DimensionalData.AbstractDimMatrix)
+#     DimArray(𝑓(X.data), (_featuredim([getname(𝑓)]), dims(X)[2:end]...);
+#              refdims = refdims(X),
+#              name = DimensionalData.name(X), metadata = DimensionalData.metadata(X))
+# end
+# function (𝑓::AbstractFeature)(X::DimensionalData.AbstractDimMatrix)
+#     fullmethod(𝑓)(X)
+# function _setconstruct(𝒇::AbstractFeatureSet, X::DimensionalData.AbstractDimArray)
+#     FeatureArray(𝒇(X.data), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
+#                  refdims = refdims(X),
+#                  name = name(X), metadata = metadata(X))
+# end
+# function _setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray)
+#     FeatureArray(𝒇(X), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
+#                  refdims = refdims(X),
+#                  name = name(X), metadata = metadata(X))
+# end
+# (𝒇::FeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
 
 end # module
