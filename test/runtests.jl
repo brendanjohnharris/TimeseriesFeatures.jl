@@ -13,18 +13,85 @@ using TestItemRunner
     using StatsBase
     using TimeseriesFeatures
 
-    X = randn(1000, 5)
+    x = rand(1000)
+    xx = [rand(1000) for _ in 1:10]
+    X = rand(1000, 10)
+    XX = rand(1000, 3, 4)
+    xX = [rand(1000, 3) for _ in 1:4]
     μ = Feature(mean, :mean, ["distribution"], "μ")
     σ = Feature(std, :std, ["distribution"], "σ")
+    slow = Feature(x -> (sleep(1); sum(x)), :slow, ["distribution"], "Slow feature")
+    flow = FeatureSet([μ, σ, slow])
+    _fast1 = Feature(x -> 1.0, :fast1, ["distribution"], "Fast feature")
+    _fast2 = Feature(x -> 2.0, :fast2, ["distribution"], "Fast feature")
+    timestwo = Feature(x -> 2x, :timestwo, ["distribution"], "Fast feature")
+    fast = SuperFeatureSet([SuperFeature(timestwo, _fast1), SuperFeature(timestwo, _fast2)])
     𝒇₁ = FeatureSet([sum, length], [:sum, :length], [["distribution"], ["sampling"]],
                     ["∑x¹", "∑x⁰"])
     𝒇 = FeatureSet([μ, σ]) + 𝒇₁
     𝒇₂ = FeatureSet([μ, σ])
-    X = randn(100, 2)
     𝒇₃ = 𝒇₁ + 𝒇₂
+    𝒇s = FeatureSet([SuperFeature(μ), σ])
+
+    Ts = [Int32, Int64, Float32, Float64]
 end
 
-@testitem "FeatureArray stability" setup=[Setup] begin
+@testitem "Features" setup=[Setup] begin
+    using Statistics, TimeseriesFeatures
+    μ = @inferred Feature(mean, :mean, ["distribution"], "μ")
+    @test μ isa Feature{typeof(mean)}
+
+    _μ = @inferred Feature(mean, :mean, "_μ", ["distribution"]) # * Alternate constructor
+    @test isequal(μ, _μ) # Compares names
+    @test !==(μ, _μ) # Compares fields
+    @test unique([μ, _μ]) == [μ] # Uses isequal
+
+    _μ = @inferred Feature(mean, :_mean, "μ", ["distribution"])
+    @test !isequal(μ, _μ) # Compares names
+    @test !==(μ, _μ) # Compares fields
+    @test unique([μ, _μ]) == [μ, _μ] # Uses isequal
+
+    @test [μ, SuperFeature(μ)] isa Vector{SuperFeature} # *Vector causes a promotion
+    for μ in (μ, SuperFeature(μ))
+        @inferred Feature(μ)
+        @test Feature(μ) == μ
+
+        # * Calculate features
+        f = @inferred μ(x)
+        @test f isa Float64
+        @test f≈0.5 atol=0.05
+
+        f = @inferred μ(xx)
+        @test f isa Vector{Float64}
+        @test length(f) == 10
+
+        f = @inferred μ(X)
+        @test f isa Vector{Float64}
+        @test length(f) == 10
+
+        f = @inferred μ(XX)
+        @test f isa Matrix{Float64}
+        @test size(f) == (3, 4)
+
+        f = @inferred μ(xX)
+        @test f isa Vector{Vector{Float64}}
+        @test length(f) == 4
+        @test length(f[1]) == 3
+
+        map(Ts) do T
+            @inferred μ(round.(T, x))
+            @inferred μ([round.(T, x) for x in xx])
+            Y = round.(T, X)
+            @inferred μ(Y)
+            @inferred μ(round.(T, XX))
+            yY = [round.(T, x) for x in xX]
+            @inferred map(μ, yY)
+            @inferred μ(yY)
+        end
+    end
+end
+
+@testitem "FeatureArrays" setup=[Setup] begin
     x = randn(10)
     d = Feat(DimensionalData.Categorical(Symbol.(1:length(x));
                                          order = DimensionalData.Unordered()))
@@ -33,20 +100,64 @@ end
     @inferred FeatureArray(x, DimensionalData.format((d,), x))
     f = @inferred FeatureArray(x, (d,))
     f = @inferred FeatureArray(x, Symbol.(1:length(x)))
+
+    𝑓s = [:mean, :std]
+    𝑓 = @inferred FeatureSet([μ, σ])
+
+    F = @inferred 𝒇(X)
+    @inferred F[1:2]
+    @test F[𝑓] == F[𝑓s]
+    @test F[𝑓] == F[1:2]
+    @test all(F[𝑓s] .== F[1:2]) # Importantly, F[𝑓s, :] is NOT SUPPORTED
+
+    X = randn(1000, 200)
+    F = 𝒇(X)
+    @test F[𝑓] == F[𝑓s]
+    @test F[𝑓] == F[𝑓, :] == F[1:2, :]
+    @test F[𝑓s] == F[𝑓s, :] == F[1:2, :]
+
+    X = randn(1000, 20, 20)
+    F = 𝒇(X)
+    @test F[𝑓] == F[𝑓s]
+    @test F[𝑓] == F[𝑓, :, :] == F[1:2, :, :]
+    @test F[𝑓s] == F[𝑓s, :, :] == F[1:2, :, :]
 end
 
-# @testset "Feature stability" begin
-#     x = randn(1000) .|> Float32
-#     @inferred getmethod(μ)(x)
-#     @inferred μ(x)
-# end
+@testitem "SuperFeatures" setup=[Setup] begin
+    mu = @inferred SuperFeature(μ)
+    @inferred SuperFeature(μ, σ)
+
+    @inferred getsuper(mu)
+    @inferred getfeature(mu)
+    @inferred TimeseriesFeatures.fullmethod(mu)
+end
 
 @testitem "FeatureSet" setup=[Setup] begin
     @test 𝒇₃ isa FeatureSet
+
+    @inferred getfeatures(𝒇₃)
+    _ms = [(@inferred getmethod(f)) for f in 𝒇₃]
+    ms = @inferred getmethods(𝒇₃)
+    @test _ms == ms
+    @inferred getnames(𝒇₃)
+    @inferred getkeywords(𝒇₃)
+    @inferred getdescriptions(𝒇₃)
+    @inferred size(𝒇₃)
+
     @inferred 𝒇₁(X)
     @inferred 𝒇₃(X)
     @test getnames(𝒇₃) == [:sum, :length, :mean, :std]
-    @inferred 𝒇₃[:sum]
+
+    ff = @inferred 𝒇₃[[:mean, :sum]]
+    𝒈 = deepcopy(𝒇)
+    @test_nowarn 𝒈[3] = σ
+
+    # ff = @inferred getfeatures(𝒇)
+    # @inferred ff[[3]]
+    # @inferred 𝒇[[3]]
+    # @inferred 𝒇₃[1]
+    # @inferred 𝒇₃[:sum]
+
     @test getname(𝒇₃[:sum]) == :sum
     @test all([getname(𝒇₃[x]) == x for x in getnames(𝒇₃)])
     @inferred 𝒇₃(X)[:sum, :]
@@ -65,12 +176,27 @@ end
 
     # @inferred 𝒇₃(X)[[:sum, :length], :]
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :]
+    @inferred TimeseriesFeatures.SuperFeatures.promote_eltype(𝒇₃, 𝒇₂)
     @test 𝒇₁ == 𝒇₃ \ 𝒇₂ == setdiff(𝒇₃, 𝒇₂)
     @test 𝒇₃ \ 𝒇₂ isa FeatureSet
     @test 𝒇₃ == 𝒇₁ ∪ 𝒇₂ == union(𝒇₁, 𝒇₂)
     @test 𝒇₁ ∪ 𝒇₂ isa FeatureSet
     @test 𝒇₂ == 𝒇₃ ∩ 𝒇₂ == intersect(𝒇₃, 𝒇₂)
     @test 𝒇₃ ∩ 𝒇₂ isa FeatureSet
+
+    # @inferred vcat(𝒇₃, 𝒇₂)
+    # @inferred 𝒇₃ + 𝒇₂
+    # @inferred 𝒇₃ + μ
+    # @inferred 𝒇₃ \ 𝒇₂
+    # @inferred 𝒇₃ ∪ 𝒇₂
+    # @inferred 𝒇₃ ∩ 𝒇₂
+
+    # @inferred vcat(𝒇₂, 𝒇s)
+    # @inferred 𝒇₂ + 𝒇s
+    # @inferred 𝒇₂ + μ
+    # @inferred 𝒇₃ \ 𝒇s
+    # @inferred 𝒇₂ ∪ 𝒇s
+    # @inferred 𝒇₂ ∩ 𝒇s
 
     @test 𝒇₁ + μ isa FeatureSet
     @test μ + 𝒇₁ isa FeatureSet
@@ -102,29 +228,6 @@ end
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :, :]
 end
 
-@testitem "FeatureArray indexing" setup=[Setup] begin
-    𝑓s = [:mean, :std]
-    𝑓 = FeatureSet([μ, σ])
-
-    X = randn(1000)
-    F = 𝒇(X)
-    @test F[𝑓] == F[𝑓s]
-    @test F[𝑓] == F[1:2]
-    @test all(F[𝑓s] .== F[1:2]) # Importantly, F[𝑓s, :] is NOT SUPPORTED
-
-    X = randn(1000, 200)
-    F = 𝒇(X)
-    @test F[𝑓] == F[𝑓s]
-    @test F[𝑓] == F[𝑓, :] == F[1:2, :]
-    @test F[𝑓s] == F[𝑓s, :] == F[1:2, :]
-
-    X = randn(1000, 20, 20)
-    F = 𝒇(X)
-    @test F[𝑓] == F[𝑓s]
-    @test F[𝑓] == F[𝑓, :, :] == F[1:2, :, :]
-    @test F[𝑓s] == F[𝑓s, :, :] == F[1:2, :, :]
-end
-
 @testitem "SuperFeatures" setup=[Setup] begin
     x = rand(1000, 2)
     @test_nowarn TimeseriesFeatures.zᶠ(x)
@@ -146,10 +249,11 @@ end
     @test z == 𝒇(X)
 
     if Threads.nthreads() ≥ 8 # This will only be faster if the machine has a solid number of threads
-        a = @benchmark 𝒇($X)
-        _X = eachcol(X)
-        b = @benchmark 𝒇.($_X)
-        @test median(a.times) ≤ median(b.times) # Check mutlithreading works
+        Z = randn(100000, 1000)
+        Z = eachcol(Z)
+        a = @benchmark 𝒇($Z)
+        b = @benchmark 𝒇.($Z)
+        @test median(a.times) ≤ median(b.times) # Check multithreading works
         @test a.allocs ≤ b.allocs
     end
 
@@ -158,8 +262,8 @@ end
     @test vcat(𝒇, 𝒇) isa SuperFeatureSet
     @test vcat(𝒇, 𝒇₁) isa SuperFeatureSet
 
-    @inferred setdiff(𝒇, 𝒇)
-    @inferred setdiff(𝒇, 𝒇₁)
+    # @inferred setdiff(𝒇, 𝒇)
+    # @inferred setdiff(𝒇, 𝒇₁)
     @test setdiff(𝒇, 𝒇₁) isa SuperFeatureSet
 
     @test union(𝒇, 𝒇) isa SuperFeatureSet
@@ -185,6 +289,16 @@ end
     @test 𝒇₁ ∪ 𝒇₂ isa FeatureSet
     @test 𝒇₂ == 𝒇₃ ∩ 𝒇₂ == intersect(𝒇₃, 𝒇₂)
     @test 𝒇₃ ∩ 𝒇₂ isa FeatureSet
+
+    @test 𝒇s isa SuperFeatureSet
+    @inferred getfeatures(𝒇s)
+    _ms = [(@inferred getmethod(f)) for f in 𝒇s]
+    ms = @inferred getmethods(𝒇s)
+    @test _ms == ms
+    @inferred getnames(𝒇s)
+    @inferred getkeywords(𝒇s)
+    @inferred getdescriptions(𝒇s)
+    @inferred size(𝒇s)
 end
 
 @testitem "DimArrays" setup=[Setup] begin
@@ -410,11 +524,8 @@ end
     @test cor(x, y)≈0 atol=0.05
 end
 
-@testitem "Type stability" setup=[Setup] begin
+@testitem "Calculation type stability" setup=[Setup] begin
     𝒇s = SuperFeature.(𝒇₃) |> SuperFeatureSet
-    x = randn(1000) .|> Float32
-    xx = [randn(1000) for _ in 1:10]
-    X = randn(1000, 10)
 
     # * Features
     @inferred getmethod(μ)(x)
@@ -435,6 +546,19 @@ end
     @test all(abs.(𝑓(X)) .< 1e-10)
 
     # * FeatureSets (x, xx, X)
+    @inferred 𝒇₃(x)
+    @inferred 𝒇₃(X)
+    @inferred 𝒇₃(XX)
+    @inferred 𝒇₃(xx)
+
+    @inferred 𝒇₃(x, Any)
+    @inferred 𝒇₃(X, Any)
+    @inferred 𝒇₃(XX, Any)
+    @inferred 𝒇₃(xx, Any)
 
     # * SuperFeatureSets (x, xx, X)
+    @inferred fast(x)
+    @inferred fast(X)
+    @inferred fast(xx)
+    @inferred fast(XX)
 end

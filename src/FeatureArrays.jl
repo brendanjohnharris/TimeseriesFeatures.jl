@@ -213,54 +213,52 @@ end
 _name(x) = DimensionalData.NoName()
 _name(x::AbstractDimArray) = DimensionalData.name(x)
 _name(x::AbstractDimStack) = DimensionalData.name(x)
-function (𝒇::FeatureSet)(x::T) where {T <: AbstractVector{<:Number}}
-    y = [Float64(𝑓(x)) for 𝑓 in 𝒇]::Vector{Float64} # Reduce flexibility for type stability
+function (𝒇::FeatureSet)(x::AbstractVector{<:T},
+                         return_type::Type = Float64) where {T <: Number}
+    y = [convert(return_type, 𝑓(x)) for 𝑓 in 𝒇]::Vector{return_type}
     y = LabelledFeatureArray(y, 𝒇; x)
 end
-
-function (𝒇::FeatureSet)(X::AbstractVector{<:AbstractVector})
-    F = Array{Float64}(undef, (length(𝒇), length(X))) # Can we relax this Float64?
+function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Type = Float64)
+    F = Array{return_type}(undef, (length(𝒇), size(X)...))
     @withprogress name="TimeseriesFeatures" begin
         threadlog = 0
         threadmax = prod(size(F, 2))
-        l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
+        l = Threads.ReentrantLock()
         Threads.@threads for i in eachindex(X)
             F[:, Tuple(i)...] .= 𝒇(X[i])
-            if !isnothing(l) # Then it is worth reporting
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
+            if Threads.threadid() == 1
+                threadlog += Threads.nthreads()
+                @lock l (@logprogress threadlog / threadmax)
             end
         end
     end
     LabelledFeatureArray(F, 𝒇; x = X)
 end
-
-function (𝒇::FeatureSet)(X::AbstractArray)
-    F = Array{Float64}(undef, (length(𝒇), size(X)[2:end]...))
-    threadlog = 0
-    threadmax = prod(size(F)[2:end])
-    l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
-    @withprogress name="TimeseriesFeatures" begin
-        Threads.@threads for i in CartesianIndices(size(F)[2:end])
-            F[:, Tuple(i)...] = vec(𝒇(X[:, Tuple(i)...]))
-            if !isnothing(l)
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
-            end
-        end
-    end
-    LabelledFeatureArray(F, 𝒇; x = X)
+function (𝒇::FeatureSet)(X::AbstractArray{<:Number}, args...)
+    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
+    𝒇(eachslice(X; dims, drop = true), args...)
 end
+# function (𝒇::FeatureSet)(X::AbstractArray)
+#     F = Array{Float64}(undef, (length(𝒇), size(X)[2:end]...))
+#     threadlog = 0
+#     threadmax = prod(size(F)[2:end])
+#     l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
+#     @withprogress name="TimeseriesFeatures" begin
+#         Threads.@threads for i in CartesianIndices(size(F)[2:end])
+#             F[:, Tuple(i)...] = vec(𝒇(X[:, Tuple(i)...]))
+#             if !isnothing(l)
+#                 lock(l)
+#                 try
+#                     threadlog += 1
+#                     @logprogress threadlog / threadmax
+#                 finally
+#                     unlock(l)
+#                 end
+#             end
+#         end
+#     end
+#     LabelledFeatureArray(F, 𝒇; x = X)
+# end
 
 ##  _construct(𝑓::AbstractFeature, X::AbstractDimArray{T,1}) where {T} = 𝑓(X.data)
 

@@ -5,7 +5,7 @@ import ..Features: AbstractFeature, Feature, getmethod, getname, getkeywords,
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getmethods, getnames, getdescriptions,
                       getkeywords
 import ..FeatureArrays: FeatureVector, AbstractDimArray, _construct, _setconstruct,
-                        FeatureArray, _featuredim
+                        FeatureArray, _featuredim, LabelledFeatureArray
 using ..DimensionalData
 import Base: union, intersect, setdiff, convert, promote_rule, promote_eltype, cat, +, \
 using ProgressLogging
@@ -26,7 +26,7 @@ Base.@kwdef struct SuperFeature{F, G} <:
     keywords::Vector{String} = [""]
     super::G
 end
-Identity = Feature(identity, :identity, ["transformation"], "Identity function")
+const Identity = Feature(identity, :identity, "Identity function", ["transformation"])
 function SuperFeature(method::F, name = Symbol(method),
                       keywords::Vector{String} = [""], description::String = "";
                       super::G) where {F <: Function, G <: AbstractFeature}
@@ -37,16 +37,17 @@ function SuperFeature(method::F, name, description::String,
                       super) where {F <: Function}
     SuperFeature(; super, method, name, keywords, description)
 end
-function SuperFeature(f::Feature{F}) where {F <: Function}
-    SuperFeature{F, typeof(Identity)}(f.method, f.name, f.description, f.keywords, Identity)
+function SuperFeature(f::Feature{F}, super::Feature{G}) where {F <: Function, G <: Function}
+    SuperFeature{F, Feature{G}}(f.method, f.name, f.description, f.keywords, super)
 end
-function SuperFeature(f::Feature{F}, super::AbstractFeature) where {F <: Function}
-    SuperFeature{F, typeof(super)}(f.method, f.name, f.description, f.keywords, super)
-end
+Base.convert(::Type{SuperFeature}, x::Feature{F}) where {F <: Function} = SuperFeature(x)
+SuperFeature(f::Feature{F}) where {F <: Function} = SuperFeature(f, Identity)
 SuperFeature(f::SuperFeature) = f
+
+# * Helper functions
 getsuper(𝒇::AbstractSuperFeature) = 𝒇.super
-getsuper(::AbstractFeature) = ()
-getfeature(𝑓::SuperFeature) = Feature(getmethod(𝑓))
+getsuper(::Feature) = ()
+getfeature(𝑓::AbstractSuperFeature) = Feature(getmethod(𝑓))
 fullmethod(𝑓::AbstractSuperFeature) = getmethod(𝑓) ∘ getsuper(𝑓)
 
 # (𝑓::SuperFeature)(x::AbstractVector{<:Number}) = x |> fullmethod(𝑓)
@@ -86,99 +87,107 @@ getindex(𝒇::AbstractFeatureSet, I) = SuperFeatureSet(getfeatures(𝒇)[I])
 function superloop(f::AbstractSuperFeature, supervals, x)
     getmethod(f)(supervals[getname(getsuper(f))])
 end
-function superloop(f::AbstractFeature, supervals, x)
-    f(x) # Just a regular feature of the original time series
+
+function (𝒇::SuperFeatureSet)(x::AbstractVector{<:T},
+                              return_type::Type = Float64) where {T <: Number}
+    F = LabelledFeatureArray(Vector{return_type}(undef, length(𝒇)), 𝒇; x)
+    supers = getsuper.(𝒇)
+    ℱ = supers |> unique |> FeatureSet
+    supervals = [f(x) for f in ℱ]
+    idxs = indexin(supers, ℱ)
+    F .= [convert(return_type, getmethod(f)(supervals[i])) for (i, f) in zip(idxs, 𝒇)]
+    return F
 end
 
-function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number}; kwargs...)::FeatureVector
-    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
-    supervals = Dict(getname(f) => f(x) for f in ℱ)
-    FeatureArray(reduce(vcat, [superloop(𝑓, supervals, x) for 𝑓 in 𝒇]), 𝒇; kwargs...)
-end
-function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
-    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
-    supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
-    threadlog = 0
-    threadmax = 2.0 .* prod(size(X)[2:end])
-    l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
-    @withprogress name="TimeseriesFeatures" begin
-        idxs = CartesianIndices(size(X)[2:end])
-        Threads.@threads for i in idxs
-            supervals[:, i] = vec([f(X[:, i]) for f in ℱ])
-            if !isnothing(l)
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
-            end
-        end
-        supervals = FeatureArray(supervals, ℱ)
-        f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[:, first(idxs)]]) # Assume same output type for all time series
-        F = similar(f1, (length(𝒇), size(X)[2:end]...))
-        F[:, first(idxs)] .= f1
-        Threads.@threads for i in idxs[2:end]
-            F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[:, i]])
-            if !isnothing(l)
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
-            end
-        end
-        return FeatureArray(F, 𝒇; kwargs...)
-    end
-end
-function (𝒇::SuperFeatureSet)(X::AbstractVector{<:AbstractVector}; kwargs...)
-    ℱ = getsuper.(𝒇) |> unique |> FeatureSet
-    supervals = Array{Any}(undef, (length(ℱ), length(X))) # Can we be more specific with the types?
-    threadlog = 0
-    threadmax = 2.0 .* prod(size(X)[2:end])
-    l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
-    @withprogress name="TimeseriesFeatures" begin
-        idxs = eachindex(X)
-        Threads.@threads for i in idxs
-            supervals[:, i] = vec([f(X[i]) for f in ℱ])
-            if !isnothing(l)
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
-            end
-        end
-        supervals = FeatureArray(supervals, ℱ)
-        f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[first(idxs)]]) # Assume same output type for all time series
-        F = similar(f1, (length(𝒇), length(X)))
-        F[:, first(idxs)] .= f1
-        Threads.@threads for i in idxs[2:end]
-            F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[i]])
-            if !isnothing(l)
-                lock(l)
-                try
-                    threadlog += 1
-                    @logprogress threadlog / threadmax
-                finally
-                    unlock(l)
-                end
-            end
-        end
-        return FeatureArray(F, 𝒇; kwargs...)
-    end
-end
-function (𝒇::SuperFeatureSet)(x::AbstractDimArray; kwargs...)
-    F = 𝒇(parent(x))
-    FeatureArray(parent(F),
-                 (_featuredim(getnames(𝒇)), dims(x)[2:end]...); refdims = refdims(x),
-                 name = name(x), metadata = metadata(x), kwargs...)
-end
+# function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number}; kwargs...)::FeatureVector
+#     ℱ = getsuper.(𝒇) |> unique |> FeatureSet
+#     supervals = Dict(getname(f) => f(x) for f in ℱ)
+#     FeatureArray(reduce(vcat, [superloop(𝑓, supervals, x) for 𝑓 in 𝒇]), 𝒇; kwargs...)
+# end
+# # function (𝒇::SuperFeatureSet)(X::AbstractArray; kwargs...)
+# #     ℱ = getsuper.(𝒇) |> unique |> FeatureSet
+# #     supervals = Array{Any}(undef, (length(ℱ), size(X)[2:end]...)) # Can we be more specific with the types?
+# #     threadlog = 0
+# #     threadmax = 2.0 .* prod(size(X)[2:end])
+# #     l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
+# #     @withprogress name="TimeseriesFeatures" begin
+# #         idxs = CartesianIndices(size(X)[2:end])
+# #         Threads.@threads for i in idxs
+# #             supervals[:, i] = vec([f(X[:, i]) for f in ℱ])
+# #             if !isnothing(l)
+# #                 lock(l)
+# #                 try
+# #                     threadlog += 1
+# #                     @logprogress threadlog / threadmax
+# #                 finally
+# #                     unlock(l)
+# #                 end
+# #             end
+# #         end
+# #         supervals = FeatureArray(supervals, ℱ)
+# #         f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[:, first(idxs)]]) # Assume same output type for all time series
+# #         F = similar(f1, (length(𝒇), size(X)[2:end]...))
+# #         F[:, first(idxs)] .= f1
+# #         Threads.@threads for i in idxs[2:end]
+# #             F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[:, i]])
+# #             if !isnothing(l)
+# #                 lock(l)
+# #                 try
+# #                     threadlog += 1
+# #                     @logprogress threadlog / threadmax
+# #                 finally
+# #                     unlock(l)
+# #                 end
+# #             end
+# #         end
+# #         return FeatureArray(F, 𝒇; kwargs...)
+# #     end
+# # end
+# function (𝒇::SuperFeatureSet)(X::AbstractVector{<:AbstractVector}; kwargs...)
+#     ℱ = getsuper.(𝒇) |> unique |> FeatureSet
+#     supervals = Array{Any}(undef, (length(ℱ), length(X))) # Can we be more specific with the types?
+#     threadlog = 0
+#     threadmax = 2.0 .* prod(size(X)[2:end])
+#     l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
+#     @withprogress name="TimeseriesFeatures" begin
+#         idxs = eachindex(X)
+#         Threads.@threads for i in idxs
+#             supervals[:, i] = vec([f(X[i]) for f in ℱ])
+#             if !isnothing(l)
+#                 lock(l)
+#                 try
+#                     threadlog += 1
+#                     @logprogress threadlog / threadmax
+#                 finally
+#                     unlock(l)
+#                 end
+#             end
+#         end
+#         supervals = FeatureArray(supervals, ℱ)
+#         f1 = superloop.(𝒇, [supervals[:, first(idxs)]], [X[first(idxs)]]) # Assume same output type for all time series
+#         F = similar(f1, (length(𝒇), length(X)))
+#         F[:, first(idxs)] .= f1
+#         Threads.@threads for i in idxs[2:end]
+#             F[:, i] .= superloop.(𝒇, [supervals[:, i]], [X[i]])
+#             if !isnothing(l)
+#                 lock(l)
+#                 try
+#                     threadlog += 1
+#                     @logprogress threadlog / threadmax
+#                 finally
+#                     unlock(l)
+#                 end
+#             end
+#         end
+#         return FeatureArray(F, 𝒇; kwargs...)
+#     end
+# end
+# function (𝒇::SuperFeatureSet)(x::AbstractDimArray; kwargs...)
+#     F = 𝒇(parent(x))
+#     FeatureArray(parent(F),
+#                  (_featuredim(getnames(𝒇)), dims(x)[2:end]...); refdims = refdims(x),
+#                  name = name(x), metadata = metadata(x), kwargs...)
+# end
 
 # (𝒇::SuperFeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
 
@@ -251,28 +260,25 @@ end
 function Base.promote_eltype(v1::AbstractFeatureSet, v2::AbstractFeatureSet)
     Base.promote_type(eltype(v1), eltype(v2))
 end
-# convert(::Type{SuperFeature}, x::Feature{F}) where {F} = SuperFeature(x)
-# convert(::Type{SuperFeature}, x::Feature) = SuperFeature(x)
-# convert(::Type{AbstractFeature}, x::Feature) = SuperFeature(x)
-# convert(::Type{AbstractFeatureSet}, x::FeatureSet) = SuperFeatureSet(x)
 
-function Base.vcat(V1::AbstractFeatureSet, V2::AbstractFeatureSet)
+# ! None of these are type stable
+function Base.vcat(V1::A, V2::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
     T = Base.promote_eltype(V1, V2)
-    Base.typed_vcat(T, T.(V1), T.(V2)) |> FeatureSet
+    FeatureSet(Base.typed_vcat(T, T.(V1), T.(V2)))
 end
 (+)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = vcat(𝒇, 𝒇′)
 (+)(𝒇::AbstractFeature, 𝒇′::AbstractFeature) = FeatureSet([𝒇, 𝒇′])
 function intersect(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    T = promote_eltype(A, B)
-    intersect(T.(𝒇), T.(𝒇′)) |> FeatureSet
+    T = promote_eltype(𝒇, 𝒇′)
+    FeatureSet(intersect(T.(𝒇), T.(𝒇′)))
 end
 function union(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    T = promote_eltype(A, B)
-    union(T.(𝒇), T.(𝒇′)) |> FeatureSet
+    T = promote_eltype(𝒇, 𝒇′)
+    FeatureSet(union(T.(𝒇), T.(𝒇′)))
 end
 function setdiff(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    T = promote_eltype(A, B)
-    setdiff(T.(𝒇), T.(𝒇′)) |> FeatureSet
+    T = promote_eltype(𝒇, 𝒇′)
+    FeatureSet(setdiff(T.(𝒇), T.(𝒇′)))
 end
 (\)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = setdiff(𝒇, 𝒇′)
 

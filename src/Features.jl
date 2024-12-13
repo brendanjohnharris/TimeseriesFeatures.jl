@@ -6,7 +6,8 @@ export AbstractFeature,
        getmethod,
        getname,
        getkeywords,
-       getdescription
+       getdescription,
+       fullmethod
 
 abstract type AbstractFeature <: Function end
 
@@ -33,10 +34,11 @@ Base.@kwdef struct Feature{F} <: AbstractFeature where {F <: Function}
 end
 function Feature(method::F, name = Symbol(method), keywords::Vector{String} = [""],
                  description::String = "") where {F <: Function}
-    Feature(; method, name, keywords, description)
+    Feature(method, name, description, keywords)
 end
 Feature(f::AbstractFeature) = f
 
+# * Helper functions
 getmethod(𝑓::AbstractFeature) = 𝑓.method
 getname(𝑓::AbstractFeature) = 𝑓.name
 getnames(𝑓::AbstractFeature) = [𝑓.name]
@@ -44,17 +46,20 @@ getkeywords(𝑓::AbstractFeature) = 𝑓.keywords
 getdescription(𝑓::AbstractFeature) = 𝑓.description
 fullmethod(𝑓::AbstractFeature) = getmethod(𝑓)
 
+# * Calculate features
 (𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> fullmethod(𝑓)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(𝑓, X)
-function (𝑓::AbstractFeature)(X::AbstractArray; drop = true)
+function (𝑓::AbstractFeature)(X::AbstractArray{<:Number}; drop = true)
     dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
-    map(𝑓, eachslice(X; dims, drop))
+    eachslice(X; dims, drop) |> 𝑓
 end
 
-# We assume that any features with the same name are the same feature
+# * Comparing features
+# For indexing that any features with the same name are the same feature
 hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)
-(==)(𝑓::AbstractFeature, 𝑓′::AbstractFeature) = hash(𝑓) == hash(𝑓′)
+(Base.isequal)(𝑓::AbstractFeature, 𝑓′::AbstractFeature) = Base.isequal(hash(𝑓), hash(𝑓′))
 
+# * Display
 commasep(x) = (y = fill(", ", 2 * length(x) - 1); y[1:2:end] .= x; y)
 formatshort(𝑓::AbstractFeature) = [string(getname(𝑓)), " $(getdescription(𝑓))"]
 function formatlong(𝑓::AbstractFeature)

@@ -1,5 +1,6 @@
 module FeatureSets
-import ..Features: AbstractFeature, Feature, getname, getkeywords, getdescription,
+import ..Features: AbstractFeature, Feature, getname, getmethod, getkeywords,
+                   getdescription,
                    formatshort
 using DimensionalData
 import Base: show, size, getindex, setindex!, similar, eltype, deleteat!, filter, convert,
@@ -52,14 +53,17 @@ end
 FeatureSet(f::AbstractFeature) = FeatureSet([f])
 
 getfeatures(𝒇::AbstractFeatureSet) = 𝒇.features
-getmethods(𝒇::AbstractFeatureSet) = getmethod.(𝒇)
+function getmethods(𝒇::Array{T, N})::Array{Function, N} where {T <: AbstractFeature, N}
+    map(getmethod, 𝒇)
+end
+getmethods(𝒇::AbstractFeatureSet)::Array{Function} = 𝒇 |> collect |> getmethods
 getnames(𝒇::AbstractFeatureSet) = getname.(𝒇)
 getkeywords(𝒇::AbstractFeatureSet) = getkeywords.(𝒇)
 getdescriptions(𝒇::AbstractFeatureSet) = getdescription.(𝒇)
 
 size(𝒇::AbstractFeatureSet) = size(getfeatures(𝒇))
 
-getindex(𝒇::AbstractFeatureSet, i::Int) = getfeatures(𝒇)[i]
+getindex(𝒇::AbstractFeatureSet, i::Int) = getfeatures(𝒇)[i] # ! Not type stable
 getindex(𝒇::AbstractFeatureSet, I) = FeatureSet(getfeatures(𝒇)[I])
 
 function getindex(𝒇::AbstractFeatureSet, 𝐟::Vector{Symbol})
@@ -67,7 +71,7 @@ function getindex(𝒇::AbstractFeatureSet, 𝐟::Vector{Symbol})
     getindex(𝒇, i)
 end
 
-function getindex(𝒇::AbstractFeatureSet, f::Symbol)
+function getindex(𝒇::AbstractFeatureSet, f::Symbol) # ! Not type stable
     i = findfirst(x -> x == f, getnames(𝒇))
     getindex(𝒇, i)
 end
