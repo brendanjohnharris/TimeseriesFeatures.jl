@@ -9,7 +9,7 @@ export AbstractFeature,
        getdescription,
        fullmethod
 
-abstract type AbstractFeature <: Function end
+abstract type AbstractFeature{F} <: Function where {F} end
 
 """
     𝑓 = Feature([;] method::Function, name=Symbol(method), description="", keywords="")
@@ -26,7 +26,7 @@ The method on vectors will be applied column-wise to `Matrix` inputs, regardless
 getdescription(𝑓) # "Sum of time-series values"
 ```
 """
-Base.@kwdef struct Feature{F} <: AbstractFeature where {F <: Function}
+Base.@kwdef struct Feature{F} <: AbstractFeature{F} where {F <: Function}
     method::F
     name::Symbol = Symbol(method)
     description::String = ""

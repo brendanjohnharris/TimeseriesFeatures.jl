@@ -274,7 +274,8 @@ end
     @test intersect(𝒇, 𝒇₁) isa SuperFeatureSet
     @test isempty(intersect(𝒇, 𝒇₁))
     @test intersect(𝒇₁, 𝒇₁) isa FeatureSet
-    @test intersect(union(𝒇, 𝒇₁), 𝒇₁) == 𝒇₁
+    @test !(intersect(union(𝒇, 𝒇₁), 𝒇₁) == 𝒇₁) # One's superfeatures, one is features...
+    @test isequal(intersect(union(𝒇, 𝒇₁), 𝒇₁), 𝒇₁) # ...but they have the same names
     @test intersect(union(𝒇, 𝒇₁), 𝒇) == 𝒇
 
     @test setdiff(𝒇₃, 𝒇₂) == 𝒇₃[1:2]
@@ -561,4 +562,16 @@ end
     @inferred fast(X)
     @inferred fast(xx)
     @inferred fast(XX)
+end
+
+@testitem "Supers" setup=[Setup] begin
+    μ_z = Super(μ, TimeseriesFeatures.zᶠ) # Just annotates the SuperFeature with the super
+    @test getsuper(μ_z) == TimeseriesFeatures.zᶠ
+    @test getfeature(μ_z) == μ
+    @test getdescription(
+
+    σ_z = Super(σ, TimeseriesFeatures.zᶠ)
+    𝒇 = SuperFeatureSet([μ_z, σ_z])
+    𝐱 = rand(1000, 2)
+    @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
 end

@@ -11,7 +11,7 @@ import Base: Array, getindex, setindex!
 export AbstractFeatureArray, AbstractFeatureVector, AbstractFeatureMatrix,
        FeatureArray, FeatureVector, FeatureMatrix, getdim, setdim, FeatDim, Feat
 abstract type FeatDim{T} <: DimensionalData.DependentDim{T} end
-DimensionalData.@dim Feat FeatDim "Fe"
+DimensionalData.@dim Feat FeatDim "Feature"
 
 abstract type AbstractFeatureArray{T, N, D, A} <: AbstractDimArray{T, N, D, A} end
 

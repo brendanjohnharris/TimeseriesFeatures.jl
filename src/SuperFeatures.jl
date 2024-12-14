@@ -15,11 +15,11 @@ export SuperFeature,
        Super, AbstractSuper,
        getsuper, getfeature
 
-abstract type AbstractSuperFeature <: AbstractFeature end
+abstract type AbstractSuperFeature{F, S} <: AbstractFeature where {F, S} end
 
 ## Univariate features
 Base.@kwdef struct SuperFeature{F, G} <:
-                   AbstractSuperFeature where {F <: Function, G <: AbstractFeature}
+                   AbstractSuperFeature{F, G} where {F <: Function, G <: AbstractFeature}
     method::F
     name::Symbol = Symbol(method)
     description::String = ""
@@ -175,7 +175,7 @@ end
 
 ## Pairwise features
 abstract type AbstractSuper{F, S} <: AbstractSuperFeature where {F, S} end
-struct Super{F, S} <: AbstractSuper{F, S}
+struct Super{F, S} <: AbstractSuper{F, S} where {F <: Feature, S <: Feature}
     feature::F
     super::S
     name::Symbol
