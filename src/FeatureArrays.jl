@@ -215,17 +215,18 @@ _name(x::AbstractDimArray) = DimensionalData.name(x)
 _name(x::AbstractDimStack) = DimensionalData.name(x)
 function (𝒇::FeatureSet)(x::AbstractVector{<:T},
                          return_type::Type = Float64) where {T <: Number}
-    y = [convert(return_type, 𝑓(x)) for 𝑓 in 𝒇]::Vector{return_type}
+    y = [𝑓(x) for 𝑓 in 𝒇]
+    y = convert(Vector{return_type}, y)
     y = LabelledFeatureArray(y, 𝒇; x)
 end
 function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Type = Float64)
     F = Array{return_type}(undef, (length(𝒇), size(X)...))
     @withprogress name="TimeseriesFeatures" begin
         threadlog = 0
-        threadmax = prod(size(F, 2))
+        threadmax = length(X)
         l = Threads.ReentrantLock()
-        Threads.@threads for i in eachindex(X)
-            F[:, Tuple(i)...] .= 𝒇(X[i])
+        Threads.@threads for i in CartesianIndices(X)
+            F[:, i] .= 𝒇(X[i])
             if Threads.threadid() == 1
                 threadlog += Threads.nthreads()
                 @lock l (@logprogress threadlog / threadmax)
