@@ -22,7 +22,7 @@ functionality. For compatibility with other `TimeseresFeatures` types, define:
 abstract type AbstractFeature <: Function end
 
 """
-    𝑓 = Feature([;] method::Function, name=Symbol(method), description="", keywords="")
+    𝑓 = Feature([;] method::Function, name=Symbol(method), keywords="", description="")
 
 Construct a `Feature`, which is a function annotated with a `name`, `keywords` and short `description`.
 Features can be called as functions while `getname(𝑓)`, `getkeywords(𝑓)` and `getdescription(𝑓)` can be used to access the annotations.
