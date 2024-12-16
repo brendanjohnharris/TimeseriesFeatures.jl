@@ -9,7 +9,7 @@ import DimensionalData.Dimensions: AnonDim, format, LookupArrays.NoMetadata
 import Base: Array, getindex, setindex!
 
 export AbstractFeatureArray, AbstractFeatureVector, AbstractFeatureMatrix,
-       FeatureArray, FeatureVector, FeatureMatrix, getdim, setdim, FeatDim, Feat
+       FeatureArray, FeatureVector, FeatureMatrix, FeatDim, Feat
 abstract type FeatDim{T} <: DimensionalData.DependentDim{T} end
 DimensionalData.@dim Feat FeatDim "Feature"
 
@@ -19,7 +19,6 @@ AbstractFeatureVector = AbstractFeatureArray{T, 1} where {T}
 AbstractFeatureMatrix = AbstractFeatureArray{T, 2} where {T}
 
 _featuredim(features) = Feat(Categorical(features; order = Unordered()))
-_timeseriesdim(timeseries) = Dim{:timeseries}(timeseries)
 
 """
     F = FeatureArray(data::AbstractArray, features::Union{Tuple{Symbol},Vector{Symbol}}, [timeseries::Union{Vector, Tuple}], args...)
@@ -77,7 +76,7 @@ function FeatureArray(data::AbstractVector, features::Union{Tuple{Symbol}, Vecto
 end
 function FeatureArray(data::AbstractArray, features::Union{Tuple{Symbol}, Vector{Symbol}},
                       timeseries::Union{Vector, Tuple}; kwargs...)
-    FeatureArray(data, (_featuredim(features), _timeseriesdim(timeseries));
+    FeatureArray(data, (_featuredim(features), Dim{:timeseries}(timeseries));
                  kwargs...)
 end
 function FeatureArray(data::AbstractArray, features::Union{Tuple{Symbol}, Vector{Symbol}},
@@ -89,15 +88,8 @@ function FeatureArray(data::AbstractArray, features::Union{Tuple{Symbol}, Vector
                  (_featuredim(features),
                   [Dim{x.first}(x.second[:]) for x in otherdims]...); kwargs...)
 end
-function LabelledFeatureArray(args...; x::AbstractArray, kwargs...)
-    FeatureArray(args...;
-                 name = _name(x),
-                 metadata = DimensionalData.metadata(x),
-                 refdims = DimensionalData.refdims(x), kwargs...)
-end
 
 FeatureArray(D::DimArray) = FeatureArray(D.data, D.dims, D.refdims, D.name, D.metadata)
-# DimensionalData.DimArray(D::FeatureArray) = DimArray(D.data, D.dims, D.refdims, D.name, D.metadata)
 
 dims(A::AbstractFeatureArray) = A.dims
 refdims(A::AbstractFeatureArray) = A.refdims
@@ -183,36 +175,29 @@ function (FeatureArray{T, N} where {T})(x::AbstractArray{S, N}, args...;
     FeatureArray(x, args...; kwargs...)
 end
 
-getdim(X::AbstractDimArray, dim) = dims(X, dim).val
-
 """
     getnames(𝒇::FeatureArray)
 Get the names of features represented in the feature vector or array 𝒇 as a vector of symbols.
 """
-featureDims(A::AbstractDimArray) = getdim(A, Feat)
+featureDims(A::AbstractDimArray) = lookup(A, Feat)
 getnames(A::AbstractFeatureArray) = featureDims(A)
-
-timeseriesDims(A::AbstractDimArray) = getdim(A, :timeseries)
-
-function setdim(F::DimArray, dim, vals...)::DimArray
-    dimvec = Vector{Dimension}(undef, length(dims(F)))
-    [(dimvec[i] = dims(F)[i]) for i in 1:length(dims(F)) if !∈(i, dim)]
-    [(dimvec[dim[d]] = Dim{vals[d].first}(vals[d].second)) for d in 1:lastindex(dim)]
-    DimArray(F, Tuple(dimvec)) # * Much faster to leave F as a DimArray rather than Array(F)
-end
-setdim(F::AbstractFeatureArray, args...) = FeatureArray(setdim(DimArray(F), args...))
-
-function sortbydim(F::AbstractDimArray, dim; rev = false)
-    sdim = FeatureArrays.getdim(F, dim)
-    idxs = sortperm(sdim; rev)
-    indx = [collect(1:size(F, i)) for i in 1:ndims(F)]
-    indx[dim] = idxs
-    return F[indx...]
-end
 
 _name(x) = DimensionalData.NoName()
 _name(x::AbstractDimArray) = DimensionalData.name(x)
 _name(x::AbstractDimStack) = DimensionalData.name(x)
+function LabelledFeatureArray(args...; x::AbstractArray, kwargs...)
+    FeatureArray(args...;
+                 name = _name(x),
+                 metadata = DimensionalData.metadata(x),
+                 refdims = DimensionalData.refdims(x), kwargs...)
+end
+function LabelledFeatureArray(F::AbstractDimArray, f; x::AbstractArray, kwargs...)
+    FeatureArray(parent(F), f; # Don't have a DimArray as data
+                 name = _name(x),
+                 metadata = DimensionalData.metadata(x),
+                 refdims = DimensionalData.refdims(x), kwargs...)
+end
+
 function (𝒇::FeatureSet)(x::AbstractVector{<:T},
                          return_type::Type = Float64) where {T <: Number}
     y = [𝑓(x) for 𝑓 in 𝒇]
@@ -237,50 +222,10 @@ function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Typ
 end
 function (𝒇::FeatureSet)(X::AbstractArray{<:Number}, args...)
     dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
-    𝒇(eachslice(X; dims, drop = true), args...)
+    F = 𝒇(eachslice(X; dims, drop = true), args...)
+    LabelledFeatureArray(F, 𝒇; x = X)
 end
-# function (𝒇::FeatureSet)(X::AbstractArray)
-#     F = Array{Float64}(undef, (length(𝒇), size(X)[2:end]...))
-#     threadlog = 0
-#     threadmax = prod(size(F)[2:end])
-#     l = size(X, 1) > 1000 ? Threads.ReentrantLock() : nothing
-#     @withprogress name="TimeseriesFeatures" begin
-#         Threads.@threads for i in CartesianIndices(size(F)[2:end])
-#             F[:, Tuple(i)...] = vec(𝒇(X[:, Tuple(i)...]))
-#             if !isnothing(l)
-#                 lock(l)
-#                 try
-#                     threadlog += 1
-#                     @logprogress threadlog / threadmax
-#                 finally
-#                     unlock(l)
-#                 end
-#             end
-#         end
-#     end
-#     LabelledFeatureArray(F, 𝒇; x = X)
-# end
-
-##  _construct(𝑓::AbstractFeature, X::AbstractDimArray{T,1}) where {T} = 𝑓(X.data)
 
 (𝑓::AbstractFeature)(𝒳::AbstractDimStack) = map(𝑓, 𝒳)
-# function _construct(𝑓::AbstractFeature, X::DimensionalData.AbstractDimMatrix)
-#     DimArray(𝑓(X.data), (_featuredim([getname(𝑓)]), dims(X)[2:end]...);
-#              refdims = refdims(X),
-#              name = DimensionalData.name(X), metadata = DimensionalData.metadata(X))
-# end
-# function (𝑓::AbstractFeature)(X::DimensionalData.AbstractDimMatrix)
-#     fullmethod(𝑓)(X)
-# function _setconstruct(𝒇::AbstractFeatureSet, X::DimensionalData.AbstractDimArray)
-#     FeatureArray(𝒇(X.data), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
-#                  refdims = refdims(X),
-#                  name = name(X), metadata = metadata(X))
-# end
-# function _setconstruct(𝒇::AbstractFeatureSet, X::AbstractArray)
-#     FeatureArray(𝒇(X), (_featuredim(getnames(𝒇)), dims(X)[2:end]...);
-#                  refdims = refdims(X),
-#                  name = name(X), metadata = metadata(X))
-# end
-# (𝒇::FeatureSet)(X::AbstractDimArray) = _setconstruct(𝒇, X)
 
 end # module

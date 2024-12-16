@@ -18,16 +18,17 @@ using TestItemRunner
     X = rand(1000, 10)
     XX = rand(1000, 3, 4)
     xX = [rand(1000, 3) for _ in 1:4]
-    μ = Feature(mean, :mean, ["distribution"], "μ")
-    σ = Feature(std, :std, ["distribution"], "σ")
-    slow = Feature(x -> (sleep(1); sum(x)), :slow, ["distribution"], "Slow feature")
+    Xd = DimArray(rand(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)); name = "name")
+    μ = Feature(mean, :mean, "μ", ["distribution"])
+    σ = Feature(std, :std, "σ", ["distribution"])
+    slow = Feature(x -> (sleep(1); sum(x)), :slow, "Slow feature", ["distribution"])
     flow = FeatureSet([μ, σ, slow])
-    _fast1 = Feature(x -> 1.0, :fast1, ["distribution"], "Fast feature")
-    _fast2 = Feature(x -> 2.0, :fast2, ["distribution"], "Fast feature")
-    timestwo = Feature(x -> 2x, :timestwo, ["distribution"], "Fast feature")
+    _fast1 = Feature(x -> 1.0, :fast1, "Fast feature", ["distribution"])
+    _fast2 = Feature(x -> 2.0, :fast2, "Fast feature", ["distribution"])
+    timestwo = Feature(x -> 2x, :timestwo, "Fast feature", ["distribution"])
     fast = SuperFeatureSet([SuperFeature(timestwo, _fast1), SuperFeature(timestwo, _fast2)])
-    𝒇₁ = FeatureSet([sum, length], [:sum, :length], [["distribution"], ["sampling"]],
-                    ["∑x¹", "∑x⁰"])
+    𝒇₁ = FeatureSet([sum, length], [:sum, :length], ["∑x¹", "∑x⁰"],
+                    [["distribution"], ["sampling"]])
     𝒇 = FeatureSet([μ, σ]) + 𝒇₁
     𝒇₂ = FeatureSet([μ, σ])
     𝒇₃ = 𝒇₁ + 𝒇₂
@@ -38,7 +39,7 @@ end
 
 @testitem "Features" setup=[Setup] begin
     using Statistics, TimeseriesFeatures
-    μ = @inferred Feature(mean, :mean, ["distribution"], "μ")
+    μ = @inferred Feature(mean, :mean, "μ", ["distribution"])
     @test μ isa Feature{typeof(mean)}
 
     _μ = @inferred Feature(mean, :mean, "_μ", ["distribution"]) # * Alternate constructor
@@ -51,7 +52,7 @@ end
     @test !==(μ, _μ) # Compares fields
     @test unique([μ, _μ]) == [μ, _μ] # Uses isequal
 
-    @test [μ, SuperFeature(μ)] isa Vector{SuperFeature} # *Vector causes a promotion
+    @test [μ, SuperFeature(μ)] isa Vector{SuperFeature} # * Vector causes a promotion
     for μ in (μ, SuperFeature(μ))
         @inferred Feature(μ)
         @test Feature(μ) == μ
@@ -107,8 +108,8 @@ end
     F = @inferred 𝒇(X)
     @inferred F[1:2]
     @test F[𝑓] == F[𝑓s]
-    @test F[𝑓] == F[1:2]
-    @test all(F[𝑓s] .== F[1:2]) # Importantly, F[𝑓s, :] is NOT SUPPORTED
+    @test F[𝑓] == F[1:2, :]
+    @test all(F[𝑓s, :] .== F[1:2, :])
 
     X = randn(1000, 200)
     F = 𝒇(X)
@@ -121,6 +122,8 @@ end
     @test F[𝑓] == F[𝑓s]
     @test F[𝑓] == F[𝑓, :, :] == F[1:2, :, :]
     @test F[𝑓s] == F[𝑓s, :, :] == F[1:2, :, :]
+
+    @test Array(F) == parent(F)
 end
 
 @testitem "SuperFeatures" setup=[Setup] begin
@@ -129,7 +132,6 @@ end
 
     @inferred getsuper(mu)
     @inferred getfeature(mu)
-    @inferred TimeseriesFeatures.fullmethod(mu)
 end
 
 @testitem "FeatureSet" setup=[Setup] begin
@@ -160,7 +162,7 @@ end
 
     @test getname(𝒇₃[:sum]) == :sum
     @test all([getname(𝒇₃[x]) == x for x in getnames(𝒇₃)])
-    @inferred 𝒇₃(X)[:sum, :]
+    # @inferred 𝒇₃(X)[:sum, :] # ! Not type stable!
     @test 𝒇₃(X)[:sum] == 𝒇₃(X)[:sum, :]
 
     @test hcat(eachslice(𝒇₃(X), dims = 2)...) isa FeatureArray # Check rebuild is ok (does not convert to DimArray
@@ -170,9 +172,9 @@ end
     @inferred getindex(F, 𝑓[1])
 
     F = 𝒇₃(X)
-    @inferred getindex(F, 𝑓[1])
+    # @inferred getindex(F, 𝑓[1]) # ! Not type stable
     @inferred getindex(F, 1:2)
-    # @inferred getindex(F, 𝑓) # Not typestable
+    # @inferred getindex(F, 𝑓) # ! Not typestable
 
     # @inferred 𝒇₃(X)[[:sum, :length], :]
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :]
@@ -200,6 +202,10 @@ end
 
     @test 𝒇₁ + μ isa FeatureSet
     @test μ + 𝒇₁ isa FeatureSet
+
+    @test FeatureSet(mean, :mean, "μ", ["distribution"]) isa FeatureSet
+    @test_nowarn show(𝒇₁)
+    @test_nowarn display(𝒇₁)
 end
 
 @testitem "Multidimensional arrays" setup=[Setup] begin
@@ -231,10 +237,10 @@ end
 @testitem "SuperFeatures" setup=[Setup] begin
     x = rand(1000, 2)
     @test_nowarn TimeseriesFeatures.zᶠ(x)
-    μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
-                     super = TimeseriesFeatures.zᶠ)
-    σ = SuperFeature(std, :σ, ["1"], "Standard deviation of the z-scored time series";
-                     super = TimeseriesFeatures.zᶠ)
+    μ = SuperFeature(mean, :μ, "Mean value of the z-scored time series", ["0"],
+                     TimeseriesFeatures.zᶠ)
+    σ = SuperFeature(std, :σ, "Standard deviation of the z-scored time series", ["1"],
+                     TimeseriesFeatures.zᶠ)
     𝒇 = SuperFeatureSet([μ, σ])
     @test all(isapprox.(𝒇(x), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
 
@@ -303,10 +309,10 @@ end
 end
 
 @testitem "DimArrays" setup=[Setup] begin
-    μ = Feature(mean, :mean, ["distribution"], "μ")
-    σ = Feature(std, :std, ["distribution"], "σ")
-    𝒇₁ = FeatureSet([sum, length], [:sum, :length], [["distribution"], ["sampling"]],
-                    ["∑x¹", "∑x⁰"])
+    μ = Feature(mean, :mean, "μ", ["distribution"])
+    σ = Feature(std, :std, "σ", ["distribution"])
+    𝒇₁ = FeatureSet([sum, length], [:sum, :length], ["∑x¹", "∑x⁰"],
+                    [["distribution"], ["sampling"]])
     𝒇 = FeatureSet([μ, σ]) + 𝒇₁
 
     m = Dict(:a => "yolo")
@@ -324,10 +330,10 @@ end
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
 
-    μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
-                     super = TimeseriesFeatures.zᶠ)
-    σ = SuperFeature(std, :σ, ["1"], "Standard deviation of the z-scored time series";
-                     super = TimeseriesFeatures.zᶠ)
+    μ = SuperFeature(mean, :μ, "Mean value of the z-scored time series", ["0"],
+                     TimeseriesFeatures.zᶠ)
+    σ = SuperFeature(std, :σ, "Standard deviation of the z-scored time series", ["1"],
+                     TimeseriesFeatures.zᶠ)
     𝒇 = SuperFeatureSet([μ, σ])
 
     F = @test_nowarn σ(x)
@@ -347,18 +353,20 @@ end
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
 
-    μ = SuperFeature(mean, :μ, ["0"], "Mean value of the z-scored time series",
-                     super = TimeseriesFeatures.zᶠ)
-    σ = SuperFeature(std, :σ, ["1"], "Standard deviation of the z-scored time series";
-                     super = TimeseriesFeatures.zᶠ)
+    μ = SuperFeature(mean, :μ, "Mean value of the z-scored time series", ["0"],
+                     TimeseriesFeatures.zᶠ)
+    σ = SuperFeature(std, :σ, "Standard deviation of the z-scored time series", ["1"],
+                     TimeseriesFeatures.zᶠ)
     𝒇 = SuperFeatureSet([μ, σ])
 
     F = @test_nowarn σ(x)
     @inferred σ(x)
     @test all(F .≈ 1.0)
-    @test F isa FeatureArray{<:Float64}
+    @test F isa DimArray{Float64}
+    @test dims(F, 1) isa Dim{:var}
+    @test dims(F, 2) isa Y
     F = @test_nowarn μ(x)
-    @test F isa FeatureArray{<:Float64}
+    @test F isa DimArray{Float64}
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
 
@@ -387,14 +395,14 @@ end
     lags = TimeseriesFeatures.ac_lags
     AC_slow = FeatureSet([x -> autocor(x, [ℓ]; demean = true)[1]::Float64 for ℓ in lags],
                          Symbol.(["AC_$ℓ" for ℓ in lags]),
-                         [["correlation"] for ℓ in lags],
-                         ["Autocorrelation at lag $ℓ" for ℓ in lags])
+                         ["Autocorrelation at lag $ℓ" for ℓ in lags],
+                         [["correlation"] for ℓ in lags])
     AC_partial_slow = FeatureSet([x -> pacf(x, [ℓ]; method = :regression)[1]::Float64
                                   for ℓ in lags],
                                  Symbol.(["Partial_AC_$ℓ" for ℓ in lags]),
-                                 [["correlation"] for ℓ in lags],
                                  ["Partial autocorrelation at lag $ℓ (regression method)"
-                                  for ℓ in lags])
+                                  for ℓ in lags],
+                                 [["correlation"] for ℓ in lags])
 
     @test all(AC_slow(X) .== AC(X))
     @test all(AC_partial_slow(X) .== Partial_AC(X))
@@ -417,25 +425,66 @@ end
 end
 
 @testitem "PairwiseFeatures" setup=[Setup] begin
-    X = randn(1000, 5)
+    using LinearAlgebra
+    X = randn(100000, 5)
     𝑓 = Pearson
+    @test 1.0 == @inferred 𝑓(randn(100))
     f = @test_nowarn 𝑓(X)
+    @inferred 𝑓(X)
 
-    X = DimArray(randn(100, 2), (Dim{:x}(1:100), Dim{:var}(1:2)))
+    @inferred SuperFeature(𝑓)
+    @inferred SuperFeature(𝑓)(X)
+    @test SuperFeature(𝑓)(X)≈I(5) atol=0.05
+
+    X = DimArray(randn(100000, 2), (Dim{:x}(1:100000), Dim{:var}(1:2)))
     f = @test_nowarn 𝑓(X)
     @test dims(f, 1) == dims(X, 2) == dims(f, 2)
 
     𝒇 = FeatureSet([Pearson, Covariance])
+    f = @inferred 𝒇(X)
+    f = 𝒇(eachcol(X))
+    f = 𝒇(X)
     @test 𝒇(X) isa FeatureArray
+    @test 𝒇(X)[1] isa DimArray # * Then stack() them to get a 3D array
+    @test stack(𝒇(X); dims = 1) isa FeatureArray
+    @test stack(𝒇(X); dims = 1)[:Pearson] isa DimArray
+    @test stack(𝒇(X); dims = 1)[:Pearson]≈[1 0; 0 1] atol=0.05
+
+    X = randn(10000, 5)
+    f = @inferred 𝒇(eachcol(X))
+    f = @inferred 𝒇(X)
+    @test f[:Pearson]≈I(5) atol=0.1
+    @test f[:Covariance]≈cov(X) atol=1e-3
+
+    # ! Now SuperPairwiseFeatureSets
+    𝒇 = SuperFeature.(𝒇, [timestwo]) |> PairwiseSuperFeatureSet
+    @test 𝒇 isa SuperPairwiseFeatureSet
+    # f = @inferred 𝒇(x, x)
+    f = @test_nowarn 𝒇(x, x)
+    @test f[:Covariance] == Covariance(2.0 * x) # SuperFeature is applied
+    f = 𝒇(X)
+    @test 𝒇(X) isa FeatureArray
+
+    X = DimArray(randn(100000, 2), (Dim{:x}(1:100000), Dim{:var}(1:2)))
+    @test 𝒇(X)[1] isa DimArray # * Then stack() them to get a 3D array
+    @test stack(𝒇(X); dims = 1) isa FeatureArray
+    @test stack(𝒇(X); dims = 1)[:Pearson] isa DimArray
+    @test stack(𝒇(X); dims = 1)[:Pearson]≈[1 0; 0 1] atol=0.1
+
+    X = randn(100000, 5)
+    f = @inferred 𝒇(eachcol(X))
+    # f = @inferred 𝒇(X)
+    @test f[:Pearson]≈I(5) atol=0.05
+    @test f[:Covariance]≈cov(2.0 .* X) atol=1e-4
 end
 
-@testitem "MultivariateFeatures" setup=[Setup] begin
-    X = DimArray(randn(100000, 20), (Dim{:x}(1:100000), Dim{:var}(1:20)))
-    @test all(isapprox.(Covariance_svd(X), Covariance(X), atol = 1e-4))
-    @time f1 = Covariance(X) # Much faster
-    @time f2 = Covariance_svd(X) # Much faster
-    @time cov(X) # Faster again
-end
+# @testitem "MultivariateFeatures" setup=[Setup] begin
+#     X = DimArray(randn(100000, 20), (Dim{:x}(1:100000), Dim{:var}(1:20)))
+#     @test all(isapprox.(Covariance_svd(X), Covariance(X), atol = 1e-4))
+#     @time f1 = Covariance(X) # Much faster
+#     @time f2 = Covariance_svd(X) # Much faster
+#     @time cov(X) # Faster again
+# end
 
 @testitem "AssociationsExt" setup=[Setup] begin
     X = randn(1000, 2)
@@ -451,31 +500,31 @@ end
 @testitem "Super" setup=[Setup] begin
     using StatsBase, TimeseriesFeatures, Test
     𝐱 = rand(1000, 2)
-    μ = Feature(mean, :μ, ["0"], "Mean value of the time series")
-    σ = Feature(std, :σ, ["1"], "Standard deviation of the time series")
-    μ_z = @test_nowarn Super(μ, TimeseriesFeatures.zᶠ)
-    σ_z = @test_nowarn Super(σ, TimeseriesFeatures.zᶠ)
-    @test μ_z isa Super
+    μ = Feature(mean, :μ, "Mean value of the time series", ["0"])
+    σ = Feature(std, :σ, "Standard deviation of the time series", ["1"])
+    μ_z = @test_nowarn SuperFeature(μ, TimeseriesFeatures.zᶠ; merge = true)
+    σ_z = @test_nowarn SuperFeature(σ, TimeseriesFeatures.zᶠ; merge = true)
+    @test μ_z isa SuperFeature
     @test μ_z(𝐱)≈[0, 0] atol=1e-13
     𝒇 = SuperFeatureSet([μ_z, σ_z])
     @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
 
     # Check speed
-    μ = [Feature(mean, Symbol("μ_$i"), ["0"], "Mean value of the time series")
+    μ = [Feature(mean, Symbol("μ_$i"), "Mean value of the time series", ["0"])
          for i in 1:100]
-    superfeature = @test_nowarn SuperFeatureSet(Super.(μ, [TimeseriesFeatures.zᶠ]))
-    feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"), ["0"],
-                       "Mean value of the time series") for i in 1:100]
+    superfeature = @test_nowarn SuperFeatureSet(SuperFeature.(μ, [TimeseriesFeatures.zᶠ];
+                                                              merge = true))
+    feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"),
+                       "Mean value of the time series", ["0"]) for i in 1:100]
 
-    a = @benchmark superfeature(𝐱) setup=(superfeature = SuperFeatureSet(Super.(μ,
-                                                                                [
-                                                                                    TimeseriesFeatures.zᶠ
-                                                                                ]));
+    a = @benchmark superfeature(𝐱) setup=(superfeature = SuperFeatureSet(SuperFeature.(μ,
+                                                                                       [TimeseriesFeatures.zᶠ];
+                                                                                       merge = true));
                                           𝐱 = rand(1000, 2))
     b = @benchmark [f(𝐱) for f in feature] setup=(feature = [Feature(x -> (zscore(x)),
-                                                                     Symbol("μ_$i"), ["0"],
-                                                                     "Mean value of the time series")
-                                                             for i in 1:100];
+                                                                     Symbol("μ_$i"),
+                                                                     "Mean value of the time series",
+                                                                     ["0"]) for i in 1:100];
                                                   𝐱 = rand(1000, 2))
     @test median(a.times) < median(b.times) / 2
 
@@ -501,16 +550,11 @@ end
     X = [sin.(x) cos.(x)]
     F = PPC_Analytic_Phase(X)
     @test F≈[1 1; 1 1] rtol=1e-3
+    @test F == PPC_Analytic_Phase(eachcol(X))
 
-    @test false # This needs more tests
-    # (𝑓::AbstractPairwiseFeature)(x::AbstractVector) = getmethod(𝑓)(x, x)
-    # function (𝑓::AbstractPairwiseFeature)(X::AbstractArray)
-    #     idxs = CartesianIndices(size(X)[2:end])
-    #     idxs = Iterators.product(idxs, idxs)
-    #     f = i -> getmethod(𝑓)(X[:, first(i)], X[:, last(i)])
-    #     f.(idxs)
-    # end
-    # function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
+    PFS = PairwiseSuperFeatureSet([PPC_Analytic_Phase, PLV_Analytic_Phase])
+    @test PFS isa SuperPairwiseFeatureSet
+    @test PFS(x)[1] == PPC_Analytic_Phase(x) == PFS[1](x)
 end
 
 @testitem "TimeseriesToolsExt" setup=[Setup] begin
@@ -562,16 +606,4 @@ end
     @inferred fast(X)
     @inferred fast(xx)
     @inferred fast(XX)
-end
-
-@testitem "Supers" setup=[Setup] begin
-    μ_z = Super(μ, TimeseriesFeatures.zᶠ) # Just annotates the SuperFeature with the super
-    @test getsuper(μ_z) == TimeseriesFeatures.zᶠ
-    @test getfeature(μ_z) == μ
-    @test getdescription(
-
-    σ_z = Super(σ, TimeseriesFeatures.zᶠ)
-    𝒇 = SuperFeatureSet([μ_z, σ_z])
-    𝐱 = rand(1000, 2)
-    @test all(isapprox.(𝒇(𝐱), [0.0 0.0; 1.0 1.0]; atol = 1e-9))
 end

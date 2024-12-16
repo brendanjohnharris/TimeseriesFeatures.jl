@@ -17,3 +17,4 @@ Manifest.toml
 data
 docs/build/
 docs/site/
+lcov.info

@@ -1,85 +1,128 @@
 module PairwiseFeatures
 using Statistics
-export SPI, PairwiseFeature, SPISet, PairwiseFeatureSet, AbstractPairwiseFeature
-import ..Features: AbstractFeature, Feature
+using ProgressLogging
+export PairwiseFeature, PairwiseFeatureSet, AbstractPairwiseFeature, SuperPairwiseFeature,
+       SuperPairwiseFeatureSet, PairwiseSuperFeatureSet
+import ..Features: AbstractFeature, Feature, getmethod, getname, getkeywords,
+                   getdescription, Identity
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getnames, getname
-import ..FeatureArrays: FeatureArray, FeatureVector, _featuredim
-import ..SuperFeatures: AbstractSuper, Super, getsuper, getmethod
+import ..FeatureArrays: FeatureArray, FeatureVector, _featuredim, LabelledFeatureArray
+import ..SuperFeatures: AbstractSuperFeature, SuperFeature, getsuper, getmethod, getfeature,
+                        SuperFeatureSet
 using ..DimensionalData
 export Pearson, Covariance
 
 abstract type AbstractPairwiseFeature <: AbstractFeature end
 
-Base.@kwdef struct PairwiseFeature <: AbstractPairwiseFeature
-    method::Function # For an SPI, this should be (x, y) -> f(x, y)
+Base.@kwdef struct PairwiseFeature{F} <: AbstractPairwiseFeature where {F <: Function}
+    method::F # For an SPI, this should be (x, y) -> f(x, y)
     name::Symbol = Symbol(method)
     description::String = ""
     keywords::Vector{String} = [""]
 end
-const SPI = PairwiseFeature
-function PairwiseFeature(method::Function, name = Symbol(method),
-                         keywords::Vector{String} = [""], description::String = "")
-    PairwiseFeature(; method, name, keywords, description)
+const SuperPairwiseFeature = SuperFeature{<:AbstractPairwiseFeature}
+const PairwiseUnion = Union{PairwiseFeature, SuperPairwiseFeature}
+SuperFeature(f::PairwiseFeature) = SuperFeature(f, Identity)
+
+# * AbstractFeature interface
+getmethod(𝑓::PairwiseFeature) = 𝑓.method
+getname(𝑓::PairwiseFeature) = 𝑓.name
+getnames(𝑓::PairwiseFeature) = [𝑓.name]
+getkeywords(𝑓::PairwiseFeature) = 𝑓.keywords
+getdescription(𝑓::PairwiseFeature) = 𝑓.description
+
+# * PairwiseFeature calculations
+(𝑓::PairwiseFeature)(x::AbstractVector{<:Number}) = getmethod(𝑓)(x, x)
+function (𝑓::PairwiseFeature)(x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
+    getmethod(𝑓)(x, y)
 end
-function PairwiseFeature(method::Function, name, description::String,
-                         keywords::Vector{String} = [""])
-    PairwiseFeature(; method, name, keywords, description)
+function (𝑓::PairwiseFeature)(X::AbstractArray{<:AbstractArray})
+    map(𝑓, Iterators.product(X, X))
 end
 
-(𝑓::AbstractPairwiseFeature)(x::AbstractVector) = getmethod(𝑓)(x, x)
-function (𝑓::AbstractPairwiseFeature)(X::AbstractArray)
-    idxs = CartesianIndices(size(X)[2:end])
-    idxs = Iterators.product(idxs, idxs)
-    f = i -> getmethod(𝑓)(X[:, first(i)], X[:, last(i)])
-    f.(idxs)
+# * SuperPairwiseFeature calculations
+function (𝑓::SuperPairwiseFeature)(x::AbstractVector{<:Number})
+    y = getsuper(𝑓)(x)
+    (getmethod ∘ getfeature)(𝑓)(y, y)
 end
-function (𝑓::AbstractPairwiseFeature)(X::DimensionalData.AbstractDimMatrix)
-    DimArray(𝑓(X.data), (dims(X, 2), dims(X, 2)))
+function (𝑓::SuperPairwiseFeature)(x::AbstractVector{<:Number}, y::AbstractVector{<:Number})
+    _x = getsuper(𝑓)(x)
+    _y = getsuper(𝑓)(y)
+    (getmethod ∘ getfeature)(𝑓)(_x, _y)
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractVector{<:AbstractVector})
-    # D = _featuredim([getname(𝑓)])
-    idxs = CartesianIndices(X)
-    idxs = Iterators.product(idxs, idxs)
-    f = i -> getmethod(𝑓)(X[first(i)], X[last(i)])
-    f.(idxs)
+function (𝑓::SuperPairwiseFeature)(X::AbstractArray{<:AbstractArray})
+    Y = getsuper(𝑓)(X)
+    map(getfeature(𝑓), Iterators.product(Y, Y))
 end
-function (𝑓::AbstractPairwiseFeature)(X::AbstractDimVector{<:AbstractVector})
-    D = dims(X, 1) # _featuredim([getname(𝑓)])
-    DimArray(𝑓(parent(X)), (D, D))
+function (𝑓::PairwiseUnion)(xy::NTuple{2, AbstractVector{<:Number}})
+    𝑓(first(xy), last(xy))
 end
 
+# * PairwiseFeatureSet calculations
 const PairwiseFeatureSet = FeatureSet{<:AbstractPairwiseFeature}
-const SPISet = FeatureSet{<:AbstractPairwiseFeature}
-
-function (𝒇::PairwiseFeatureSet)(x::AbstractMatrix)
-    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
-                         [ndims(x) + 1, 1:ndims(x)]),
-             (_featuredim(getnames(𝒇)), DimensionalData.AnonDim(),
-              DimensionalData.AnonDim())) |> FeatureArray
+function (𝒇::PairwiseFeatureSet)(x::AbstractVector{<:T},
+                                 y::AbstractVector{<:T},
+                                 return_type::Type = Float64) where {T <: Number}
+    y = [𝑓(x, y) for 𝑓 in 𝒇]
+    y = convert(Vector{return_type}, y)
+    FeatureArray(y, 𝒇)
 end
-function (𝒇::PairwiseFeatureSet)(x::DimensionalData.AbstractDimMatrix)
-    DimArray(permutedims((cat(FeatureVector([𝑓(x) for 𝑓 in 𝒇], 𝒇)...; dims = ndims(x) + 1)),
-                         [3, 1, 2]),
-             (_featuredim(getnames(𝒇)), dims(x, 2), dims(x, 2))) |> FeatureArray
+function (𝒇::PairwiseFeatureSet)(xy::NTuple{2, AbstractVector{<:Number}},
+                                 return_type::Type = Float64)
+    𝒇(first(xy), last(xy), return_type)
+end
+function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:AbstractVector},
+                                 return_type::Type = Array{Float64}) # ! We should parallelize this at some point
+    F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
+    LabelledFeatureArray(F, 𝒇; x = X)
+end
+function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
+                                 return_type::Type = DimArray{Float64}) # ! We should parallelize this at some point
+    F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
+    LabelledFeatureArray(F, 𝒇; x = X)
 end
 
-# TODO Write tests for this
+# * SuperPairwiseFeatureSet calculations
+const SuperPairwiseFeatureSet = FeatureSet{SuperPairwiseFeature}
+const _SuperPairwiseFeatureSet = Vector{SuperFeature{<:AbstractPairwiseFeature, T} where T}
+function PairwiseSuperFeatureSet(f::Vector{<:AbstractSuperFeature})
+    f = _SuperPairwiseFeatureSet(f)
+    FeatureSet(f)::SuperPairwiseFeatureSet
+end
+function (𝒇::SuperPairwiseFeatureSet)(x::AbstractVector{<:T},
+                                      y::AbstractVector{<:T},
+                                      return_type::Type = Float64) where {T <: Number}
+    supers = getsuper.(𝒇)
+    ℱ = supers |> unique |> FeatureSet
 
-Pearson = SPI((x, y) -> cor(x, y), :Pearson, "Pearson correlation coefficient",
-              ["correlation"])
-Covariance = SPI((x, y) -> cov(x, y), :Pearson, "Sample covariance", ["covariance"])
+    superxs = [f(x) for f in ℱ]
+    superys = [f(y) for f in ℱ]
+    idxs = indexin(supers, ℱ)
 
-# function (𝑓::AbstractSuper{F, S})(x::AbstractVector) where {F <: AbstractPairwiseFeature,
-#                                                             S <: AbstractFeature}
-#     y = getsuper(𝑓)(x)
-#     getfeature(𝑓)(y, y)
-# end
-# function (𝒇::SuperFeatureSet)(x::AbstractVector{<:Number})::FeatureVector
-#     ℱ = getsuper.(𝒇) |> unique |> SuperFeatureSet
-#     supervals = ℱ(x)
-#     FeatureVector([superloop(𝑓, supervals) for 𝑓 ∈ 𝒇], 𝒇)
-# end
-# (𝑓::AbstractSuper{F,S})(X::AbstractArray) where {F<:AbstractPairwiseFeature,S<:AbstractFeature}
-# (𝑓::AbstractSuper{F,S})(X::AbstractDimArray) where {F<:AbstractPairwiseFeature,S<:AbstractFeature} = _construct(𝑓, mapslices(getmethod(𝑓) ∘ getsuper(𝑓), X; dims=1))
+    y = [(getmethod ∘ getfeature)(𝑓)(superxs[i], superys[i]) for (i, 𝑓) in zip(idxs, 𝒇)]
+    y = convert(Vector{return_type}, y)
+    y = FeatureArray(y, 𝒇)
+end
+function (𝒇::SuperPairwiseFeatureSet)(x::AbstractVector{<:T},
+                                      return_type::Type = Float64) where {T <: Number}
+    𝒇(x, x, return_type)
+end
+function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{<:AbstractVector},
+                                      return_type::Type = Array{Float64})
+    F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
+    LabelledFeatureArray(F, 𝒇; x = X)
+end
+function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
+                                      return_type::Type = DimArray{Float64})
+    F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
+    LabelledFeatureArray(F, 𝒇; x = X)
+end
+
+Pearson = PairwiseFeature((x, y) -> cor(collect(x), collect(y)), :Pearson,
+                          "Pearson correlation coefficient",
+                          ["correlation"])
+Covariance = PairwiseFeature((x, y) -> cov(collect(x), collect(y)), :Covariance,
+                             "Sample covariance",
+                             ["covariance"])
 
 end # module

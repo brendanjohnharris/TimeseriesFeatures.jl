@@ -18,25 +18,22 @@ include("FeatureSets.jl")
 include("FeatureArrays.jl")
 include("SuperFeatures.jl")
 include("PairwiseFeatures.jl")
-include("MultivariateFeatures.jl")
 
-using .Features, .FeatureSets, .FeatureArrays, .SuperFeatures, .PairwiseFeatures,
-      .MultivariateFeatures
+using .Features, .FeatureSets, .FeatureArrays, .SuperFeatures, .PairwiseFeatures
 include("StatsBase.jl")
 
 z_score(𝐱::AbstractVector) = (𝐱 .- mean(𝐱)) ./ (std(𝐱))
-zᶠ = Feature(TimeseriesFeatures.z_score, :z_score, ["normalization"], "𝐱 → (𝐱 - μ(𝐱))/σ(𝐱)")
+const zᶠ = Feature(TimeseriesFeatures.z_score, :z_score, "𝐱 → (𝐱 - μ(𝐱))/σ(𝐱)",
+                   ["normalization"])
 
+export AbstractFeature, Feature, getmethod, getname, getkeywords, getdescription, Identity
 export AbstractFeatureArray, AbstractFeatureVector, AbstractFeatureMatrix,
-       FeatureArray, FeatureVector, FeatureMatrix, getdim, setdim, FeatDim, Feat
-export AbstractFeature, Feature, getmethod, getname, getkeywords, getdescription
+       FeatureArray, FeatureVector, FeatureMatrix, FeatDim, Feat
 export AbstractFeatureSet, FeatureSet, getfeatures, getmethods, getnames, getkeywords,
        getdescriptions
-export MultivariateFeature, MultivariateFeatureSet, AbstractMultivariateFeature,
-       PairwiseOrMultivariate
-export SPI, PairwiseFeature, SPISet, PairwiseFeatureSet, AbstractPairwiseFeature
+export PairwiseFeature, PairwiseFeatureSet, AbstractPairwiseFeature, SuperPairwiseFeature,
+       SuperPairwiseFeatureSet, PairwiseSuperFeatureSet
 export SuperFeature, SuperFeatureSet, Super, AbstractSuper, getsuper, getfeature
 export Pearson, Covariance
-export Covariance_svd, Pearson_svd
 
 end

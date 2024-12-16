@@ -7,9 +7,19 @@ export AbstractFeature,
        getname,
        getkeywords,
        getdescription,
-       fullmethod
+       Identity
 
-abstract type AbstractFeature{F} <: Function where {F} end
+"""
+`AbstractFeature` has a loose interface. Overload (𝑓::AbstractFeature)(x) for different
+functionality. For compatibility with other `TimeseresFeatures` types, define:
+
+## Helper methods:
+- `getmethod(𝑓::AbstractFeature)`
+- `getname(𝑓::AbstractFeature)
+- `getkeywords(𝑓::AbstractFeature)
+- `getdescription(𝑓::AbstractFeature)`
+"""
+abstract type AbstractFeature <: Function end
 
 """
     𝑓 = Feature([;] method::Function, name=Symbol(method), description="", keywords="")
@@ -26,28 +36,23 @@ The method on vectors will be applied column-wise to `Matrix` inputs, regardless
 getdescription(𝑓) # "Sum of time-series values"
 ```
 """
-Base.@kwdef struct Feature{F} <: AbstractFeature{F} where {F <: Function}
+Base.@kwdef struct Feature{F} <: AbstractFeature where {F <: Function}
     method::F
     name::Symbol = Symbol(method)
     description::String = ""
     keywords::Vector{String} = [""]
 end
-function Feature(method::F, name = Symbol(method), keywords::Vector{String} = [""],
-                 description::String = "") where {F <: Function}
-    Feature(method, name, description, keywords)
-end
 Feature(f::AbstractFeature) = f
 
-# * Helper functions
-getmethod(𝑓::AbstractFeature) = 𝑓.method
-getname(𝑓::AbstractFeature) = 𝑓.name
-getnames(𝑓::AbstractFeature) = [𝑓.name]
-getkeywords(𝑓::AbstractFeature) = 𝑓.keywords
-getdescription(𝑓::AbstractFeature) = 𝑓.description
-fullmethod(𝑓::AbstractFeature) = getmethod(𝑓)
+# * AbstractFeature interface
+getmethod(𝑓::Feature) = 𝑓.method
+getname(𝑓::Feature) = 𝑓.name
+getnames(𝑓::Feature) = [𝑓.name]
+getkeywords(𝑓::Feature) = 𝑓.keywords
+getdescription(𝑓::Feature) = 𝑓.description
 
 # * Calculate features
-(𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> fullmethod(𝑓)
+(𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> getmethod(𝑓)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(𝑓, X)
 function (𝑓::AbstractFeature)(X::AbstractArray{<:Number}; drop = true)
     dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
@@ -55,7 +60,7 @@ function (𝑓::AbstractFeature)(X::AbstractArray{<:Number}; drop = true)
 end
 
 # * Comparing features
-# For indexing that any features with the same name are the same feature
+# For indexing: any features with the same name are the same feature
 hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)
 (Base.isequal)(𝑓::AbstractFeature, 𝑓′::AbstractFeature) = Base.isequal(hash(𝑓), hash(𝑓′))
 
@@ -83,5 +88,7 @@ function show(io::IO, m::MIME"text/plain", 𝑓::AbstractFeature)
     printstyled(io, s[6], color = :yellow)
     printstyled(io, s[7])
 end
+
+const Identity = Feature(identity, :identity, "Identity function", ["transformation"])
 
 end # module

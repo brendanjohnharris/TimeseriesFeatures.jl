@@ -27,7 +27,14 @@ function MultivariateFeature(method::Function, name, description::String,
     Feature(; method, name, keywords, description)
 end
 
-(𝑓::AbstractMultivariateFeature)(X::AbstractMatrix) = getmethod(𝑓)(X)
+# * AbstractFeature interface
+getmethod(𝑓::MultivariateFeature) = 𝑓.method
+getname(𝑓::MultivariateFeature) = 𝑓.name
+getnames(𝑓::MultivariateFeature) = [𝑓.name]
+getkeywords(𝑓::MultivariateFeature) = 𝑓.keywords
+getdescription(𝑓::MultivariateFeature) = 𝑓.description
+
+(𝑓::MultivariateFeature)(X::AbstractMatrix) = getmethod(𝑓)(X)
 
 function (𝑓::AbstractMultivariateFeature)(X::AbstractArray)
     idxs = CartesianIndices(size(X)[3:end])
