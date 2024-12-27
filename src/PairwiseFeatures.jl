@@ -71,20 +71,28 @@ function (𝒇::PairwiseFeatureSet)(xy::NTuple{2, AbstractVector{<:Number}},
                                  return_type::Type = Float64)
     𝒇(first(xy), last(xy), return_type)
 end
+
 function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:AbstractVector},
                                  return_type::Type = Array{Float64}) # ! We should parallelize this at some point
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
-    LabelledFeatureArray(F, 𝒇; x = X)
+    LabelledFeatureArray(X, F, 𝒇)
 end
 function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
                                  return_type::Type = DimArray{Float64}) # ! We should parallelize this at some point
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
-    LabelledFeatureArray(F, 𝒇; x = X)
+    LabelledFeatureArray(X, F, 𝒇)
 end
 
 # * SuperPairwiseFeatureSet calculations
 const SuperPairwiseFeatureSet = FeatureSet{SuperPairwiseFeature}
 const _SuperPairwiseFeatureSet = Vector{SuperFeature{<:AbstractPairwiseFeature, T} where T}
+
+function LabelledFeatureArray(x::AbstractDimArray, F::AbstractDimArray,
+                              f::Union{PairwiseFeatureSet, SuperPairwiseFeatureSet};
+                              kwargs...)
+    F
+end
+
 function PairwiseSuperFeatureSet(f::Vector{<:AbstractSuperFeature})
     f = _SuperPairwiseFeatureSet(f)
     FeatureSet(f)::SuperPairwiseFeatureSet
@@ -110,12 +118,12 @@ end
 function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{<:AbstractVector},
                                       return_type::Type = Array{Float64})
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
-    LabelledFeatureArray(F, 𝒇; x = X)
+    LabelledFeatureArray(X, F, 𝒇)
 end
 function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
                                       return_type::Type = DimArray{Float64})
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
-    LabelledFeatureArray(F, 𝒇; x = X)
+    LabelledFeatureArray(X, F, 𝒇)
 end
 
 Pearson = PairwiseFeature((x, y) -> cor(collect(x), collect(y)), :Pearson,

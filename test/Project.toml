@@ -5,8 +5,10 @@ ComplexityMeasures = "ab4b797d-85ee-42ba-b621-05d793b346a2"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+FFTW_jll = "f5851436-0d7a-5f13-b9de-f02708fd171a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Normalization = "be38d6a3-8366-4a42-ad57-222272b5bbe7"
+OpenSpecFun_jll = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -15,5 +17,7 @@ TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 
 [compat]
-ComplexityMeasures = "<3.8" # Weird Associations GroupSlices bug on 3.8
+ComplexityMeasures = "<3.8"
+OpenSpecFun_jll = "<0.5.5"  # Weird compatibility bugs
+FFTW_jll = "<3.3.10"
 julia = "1"

@@ -1,26 +1,26 @@
 module SuperFeatures
 
 import ..Features: AbstractFeature, Feature, getmethod, getname, getkeywords,
-                   getdescription, Identity
+    getdescription, Identity
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getmethods, getnames, getdescriptions,
-                      getkeywords
+    getkeywords
 import ..FeatureArrays: FeatureVector, AbstractDimArray, FeatureArray, _featuredim,
-                        LabelledFeatureArray
+    LabelledFeatureArray
 using ..DimensionalData
 import Base: union, intersect, setdiff, convert, promote_rule, promote_eltype, cat, +, \
 using ProgressLogging
 
 export SuperFeature,
-       SuperFeatureSet,
-       Super, AbstractSuper,
-       getsuper, getfeature
+    SuperFeatureSet,
+    Super, AbstractSuper,
+    getsuper, getfeature
 
 abstract type AbstractSuperFeature <: AbstractFeature end
 
 ## Univariate features
-Base.@kwdef struct SuperFeature{F, G} <:
-                   AbstractSuperFeature where {F <: AbstractFeature, G <:
-                                                                     AbstractFeature}
+Base.@kwdef struct SuperFeature{F,G} <:
+                   AbstractSuperFeature where {F<:AbstractFeature,G<:
+    AbstractFeature}
     feature::F
     super::G
     name::Symbol
@@ -28,8 +28,8 @@ Base.@kwdef struct SuperFeature{F, G} <:
     keywords::Vector{String} = getkeywords(feature)
 end
 function SuperFeature(feature::AbstractFeature, super::AbstractFeature;
-                      merge = false,
-                      kwargs...)
+    merge=false,
+    kwargs...)
     if merge
         name = Symbol(getname(feature), "_", getname(super))
         description = getdescription(feature) * " [of] " * getdescription(super)
@@ -42,8 +42,8 @@ function SuperFeature(feature::AbstractFeature, super::AbstractFeature;
     SuperFeature(; feature, super, name, description, keywords, kwargs...)
 end
 function SuperFeature(method::Function, name::Symbol,
-                      description::String, keywords::Vector{String},
-                      super::AbstractFeature)
+    description::String, keywords::Vector{String},
+    super::AbstractFeature)
     feature = Feature(method, name, description, keywords)
     SuperFeature(feature, super, name, description, keywords)
 end
@@ -69,7 +69,7 @@ const SuperFeatureSet = FeatureSet{<:AbstractSuperFeature}
 SuperFeatureSet(𝒇::AbstractVector{<:AbstractSuperFeature}) = FeatureSet(𝒇)
 SuperFeatureSet(𝒇::FeatureSet) = SuperFeatureSet(SuperFeature.(𝒇))
 function SuperFeatureSet(features::AbstractVector{<:Function}, names::Vector{Symbol},
-                         descriptions::Vector{String}, keywords, super)
+    descriptions::Vector{String}, keywords, super)
     SuperFeature.(features, names, descriptions, keywords, super) |> FeatureSet
 end
 function SuperFeatureSet(features::Feature, args...)
@@ -81,8 +81,8 @@ end
 SuperFeatureSet(f::AbstractFeature) = SuperFeatureSet([f])
 
 function (𝒇::SuperFeatureSet)(x::AbstractVector{<:T},
-                              return_type::Type = Float64) where {T <: Number}
-    F = LabelledFeatureArray(Vector{return_type}(undef, length(𝒇)), 𝒇; x)
+    return_type::Type=Float64) where {T<:Number}
+    F = LabelledFeatureArray(x, Vector{return_type}(undef, length(𝒇)), 𝒇)
     supers = getsuper.(𝒇)
     ℱ = supers |> unique |> FeatureSet
     supervals = [f(x) for f in ℱ]
@@ -92,12 +92,12 @@ function (𝒇::SuperFeatureSet)(x::AbstractVector{<:T},
 end
 
 function (𝒇::SuperFeatureSet)(X::AbstractArray{<:AbstractVector},
-                              return_type::Type = Float64)
+    return_type::Type=Float64)
     supers = getsuper.(𝒇)
     ℱ = supers |> unique |> FeatureSet
     idxs = indexin(supers, ℱ)
-    F = LabelledFeatureArray(Array{return_type}(undef, length(𝒇), size(X)...), 𝒇; x = X)
-    @withprogress name="TimeseriesFeatures" begin
+    F = LabelledFeatureArray(X, Array{return_type}(undef, length(𝒇), size(X)...), 𝒇)
+    @withprogress name = "TimeseriesFeatures" begin
         threadlog = 0
         threadmax = length(X)
         l = Threads.ReentrantLock()
@@ -118,7 +118,7 @@ end
 function promote_rule(::Type{<:SuperFeatureSet}, ::Type{<:FeatureSet})
     SuperFeatureSet{SuperFeature}
 end
-function promote_rule(::Type{SuperFeature{F, G}}, ::Type{<:AbstractFeature}) where {F, G}
+function promote_rule(::Type{SuperFeature{F,G}}, ::Type{<:AbstractFeature}) where {F,G}
     SuperFeature
 end
 function promote_rule(::Type{AbstractSuperFeature}, ::Type{<:AbstractFeature})
@@ -135,21 +135,21 @@ function Base.promote_eltype(v1::AbstractFeatureSet, v2::AbstractFeatureSet)
 end
 
 # ! None of these are type stable
-function Base.vcat(V1::A, V2::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+function Base.vcat(V1::A, V2::B) where {A<:AbstractFeatureSet,B<:AbstractFeatureSet}
     T = Base.promote_eltype(V1, V2)
     FeatureSet(Base.typed_vcat(T, T.(V1), T.(V2)))
 end
 (+)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = vcat(𝒇, 𝒇′)
 (+)(𝒇::AbstractFeature, 𝒇′::AbstractFeature) = FeatureSet([𝒇, 𝒇′])
-function intersect(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+function intersect(𝒇::A, 𝒇′::B) where {A<:AbstractFeatureSet,B<:AbstractFeatureSet}
     T = promote_eltype(𝒇, 𝒇′)
     FeatureSet(intersect(T.(𝒇), T.(𝒇′)))
 end
-function union(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+function union(𝒇::A, 𝒇′::B) where {A<:AbstractFeatureSet,B<:AbstractFeatureSet}
     T = promote_eltype(𝒇, 𝒇′)
     FeatureSet(union(T.(𝒇), T.(𝒇′)))
 end
-function setdiff(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
+function setdiff(𝒇::A, 𝒇′::B) where {A<:AbstractFeatureSet,B<:AbstractFeatureSet}
     T = promote_eltype(𝒇, 𝒇′)
     FeatureSet(setdiff(T.(𝒇), T.(𝒇′)))
 end
@@ -158,9 +158,9 @@ end
 # Allow operations between FeatureSet and Feature by converting the Feature
 for p in [:+, :\, :setdiff, :union, :intersect]
     eval(quote
-             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
-             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
-         end)
+        ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
+        ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
+    end)
 end
 
 end # module

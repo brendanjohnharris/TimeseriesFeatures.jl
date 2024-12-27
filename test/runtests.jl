@@ -329,6 +329,7 @@ end
     @test 𝒇(x).data == 𝒇(x |> Matrix).data
     @test DimensionalData.metadata(𝒇(x)) == m
     @test DimensionalData.name(𝒇(x)) == n
+    @test dims(𝒇(x), 2) == dims(x, 2)
 
     μ = SuperFeature(mean, :μ, "Mean value of the z-scored time series", ["0"],
                      TimeseriesFeatures.zᶠ)
@@ -345,6 +346,7 @@ end
     F = 𝒇(x)
     @test F isa FeatureArray{<:Float64}
     @test F ≈ [0 0; 1 1]
+    @test dims(F, 2) == dims(x, 2)
 
     x = DimArray(rand(100, 2, 2), (Dim{:x}(1:100), Dim{:var}(1:2), Y(1:2)); name = n,
                  metadata = m)
