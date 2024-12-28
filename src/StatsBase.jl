@@ -99,7 +99,7 @@ function RAD(z, τ = 1, doAbs = true)
     subMedianSD = std(x[subMedians])
 
     # Properties of the auto-density
-    sigma_dx = std(y - x)
+    sigma_dx = std(y .- x)
     densityDifference = 1 / superMedianSD - 1 / subMedianSD
 
     f = sigma_dx * densityDifference
