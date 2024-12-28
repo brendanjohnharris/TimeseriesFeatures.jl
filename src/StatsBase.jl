@@ -111,4 +111,4 @@ CR_RAD = Feature(x -> RAD(x, 1, true), :CR_RAD,
 CR_RAD_raw = Feature(x -> RAD(x, 1, false), :CR_RAD_raw,
                      "Rescaled Auto-Density criticality metric (uncentered)",
                      ["criticality"])
-export RAD, CR_RAD, firstcrossingacf, firstcrossing
+export RAD, CR_RAD, CR_RAD_raw, firstcrossingacf, firstcrossing
