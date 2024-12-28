@@ -105,6 +105,10 @@ function RAD(z, τ = 1, doAbs = true)
     f = sigma_dx * densityDifference
 end
 
-CR_RAD = Feature(x -> RAD(x), :CR_RAD, "Rescaled Auto-Density criticality metric",
+CR_RAD = Feature(x -> RAD(x, 1, true), :CR_RAD,
+                 "Rescaled Auto-Density criticality metric (centered)",
                  ["criticality"])
+CR_RAD_raw = Feature(x -> RAD(x, 1, false), :CR_RAD_raw,
+                     "Rescaled Auto-Density criticality metric (uncentered)",
+                     ["criticality"])
 export RAD, CR_RAD, firstcrossingacf, firstcrossing
