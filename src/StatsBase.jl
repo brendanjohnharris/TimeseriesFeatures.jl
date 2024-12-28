@@ -104,7 +104,7 @@ function RAD(z, τ = 1, doAbs = true)
 
     f = sigma_dx * densityDifference
 end
-RAD(z::AbstractDimArray, args...; kwargs...) = RAD(parent(z), args...; kwargs)
+RAD(z::AbstractDimArray, args...; kwargs...) = RAD(parent(z), args...; kwargs...)
 
 CR_RAD = Feature(x -> RAD(x, 1, true), :CR_RAD,
                  "Rescaled Auto-Density criticality metric (centered)",
