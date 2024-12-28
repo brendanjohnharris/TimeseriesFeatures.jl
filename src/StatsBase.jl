@@ -99,11 +99,12 @@ function RAD(z, τ = 1, doAbs = true)
     subMedianSD = std(x[subMedians])
 
     # Properties of the auto-density
-    sigma_dx = std(y .- x)
+    sigma_dx = std(y - x)
     densityDifference = 1 / superMedianSD - 1 / subMedianSD
 
     f = sigma_dx * densityDifference
 end
+RAD(z::AbstractDimArray, args...; kwargs...) = RAD(parent(z), args...; kwargs)
 
 CR_RAD = Feature(x -> RAD(x, 1, true), :CR_RAD,
                  "Rescaled Auto-Density criticality metric (centered)",
