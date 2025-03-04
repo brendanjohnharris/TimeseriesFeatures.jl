@@ -118,7 +118,7 @@ end
 function promote_rule(::Type{<:SuperFeatureSet}, ::Type{<:FeatureSet})
     SuperFeatureSet{SuperFeature}
 end
-function promote_rule(::Type{SuperFeature{F,G}}, ::Type{<:AbstractFeature}) where {F,G}
+function promote_rule(::Type{<:SuperFeature}, ::Type{<:AbstractFeature})
     SuperFeature
 end
 function promote_rule(::Type{AbstractSuperFeature}, ::Type{<:AbstractFeature})
@@ -127,7 +127,7 @@ end
 function promote_rule(::Type{AbstractSuperFeature}, ::Type{<:Feature{<:H}}) where {H}
     SuperFeature
 end
-function promote_rule(::Type{SuperFeature}, ::Type{<:Feature{<:H}}) where {H}
+function promote_rule(::Type{<:SuperFeature}, ::Type{<:Feature{<:H}}) where {H}
     SuperFeature
 end
 function Base.promote_eltype(v1::AbstractFeatureSet, v2::AbstractFeatureSet)
