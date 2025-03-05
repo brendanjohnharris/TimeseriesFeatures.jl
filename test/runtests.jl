@@ -80,12 +80,12 @@ end
         @test length(f[1]) == 3
 
         map(Ts) do T
-            @inferred μ(round.(T, x))
-            @inferred μ([round.(T, x) for x in xx])
-            Y = round.(T, X)
+            @inferred μ(convert.(T, round.(x)))
+            @inferred μ([coonvert.(T, round.(x)) for x in xx])
+            Y = convert.(T, round.(X))
             @inferred μ(Y)
-            @inferred μ(round.(T, XX))
-            yY = [round.(T, x) for x in xX]
+            @inferred μ(convert.(T, round.(XX)))
+            yY = [convert.(T, round.(x)) for x in xX]
             @inferred map(μ, yY)
             @inferred μ(yY)
         end
