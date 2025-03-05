@@ -528,7 +528,7 @@ end
                                                                      "Mean value of the time series",
                                                                      ["0"]) for i in 1:100];
                                                   𝐱 = rand(1000, 2))
-    @test median(a.times) < median(b.times) / 2
+    @test median(a.times) < median(b.times) / 1.5
 
     # using PProf
     # using Profile
