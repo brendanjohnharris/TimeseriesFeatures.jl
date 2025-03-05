@@ -81,7 +81,7 @@ end
 
         map(Ts) do T
             @inferred μ(convert.(T, round.(x)))
-            @inferred μ([coonvert.(T, round.(x)) for x in xx])
+            @inferred μ([convert.(T, round.(x)) for x in xx])
             Y = convert.(T, round.(X))
             @inferred μ(Y)
             @inferred μ(convert.(T, round.(XX)))
