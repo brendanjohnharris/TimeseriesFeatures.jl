@@ -54,9 +54,9 @@ getdescription(𝑓::Feature) = 𝑓.description
 # * Calculate features
 (𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> getmethod(𝑓)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(𝑓, X)
-function (𝑓::AbstractFeature)(X::AbstractArray{<:Number}; drop = true)
+function (𝑓::AbstractFeature)(X::AbstractArray{T}) where {T<:Number}
     dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
-    eachslice(X; dims, drop) |> 𝑓
+    𝑓(eachslice(X; dims, drop=true))
 end
 
 # * Comparing features
