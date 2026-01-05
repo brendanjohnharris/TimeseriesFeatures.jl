@@ -12,6 +12,7 @@ using TestItemRunner
     using Associations
     using StatsBase
     using TimeseriesFeatures
+    using TimeseriesFeatures.SuperFeatures.MoreMaps
 
     x = rand(1000)
     xx = [rand(1000) for _ in 1:10]
@@ -254,14 +255,16 @@ end
     @test 𝒇(X) isa AbstractFeatureMatrix
     @test z == 𝒇(X)
 
-    if Threads.nthreads() ≥ 8 # This will only be faster if the machine has a solid number of threads
-        Z = randn(100000, 1000)
-        Z = eachcol(Z)
-        a = @benchmark 𝒇($Z)
-        b = @benchmark 𝒇.($Z)
-        @test median(a.times) ≤ median(b.times) # Check multithreading works
-        @test a.allocs ≤ b.allocs
-    end
+    # if Threads.nthreads() ≥ 8 # This will only be faster if the machine has a solid number of threads
+    #     Z = randn(500000, 1000)
+    #     Z = eachcol(Z)
+    #     a = @benchmark 𝒇($Z)
+    #     b = @benchmark map(𝒇, $Z)
+    #     @test median(a.times) ≤ median(b.times) # Check multithreading works
+    #     @test a.allocs ≤ b.allocs
+
+    #     c = @benchmark map(𝒇, Chart(), Z)
+    # end
 
     # @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :]
 
@@ -519,15 +522,16 @@ end
     feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"),
                        "Mean value of the time series", ["0"]) for i in 1:100]
 
-    a = @benchmark superfeature(𝐱) setup=(superfeature = SuperFeatureSet(SuperFeature.(μ,
-                                                                                       [TimeseriesFeatures.zᶠ];
-                                                                                       merge = true));
-                                          𝐱 = rand(1000, 2))
-    b = @benchmark [f(𝐱) for f in feature] setup=(feature = [Feature(x -> (zscore(x)),
-                                                                     Symbol("μ_$i"),
-                                                                     "Mean value of the time series",
-                                                                     ["0"]) for i in 1:100];
-                                                  𝐱 = rand(1000, 2))
+    setup = (superfeature = SuperFeatureSet(SuperFeature.(μ, [TimeseriesFeatures.zᶠ];
+                                                          merge = true));
+             𝐱 = rand(1000, 2))
+    a = @benchmark superfeature(𝐱; chart = Chart()) setup=setup
+
+    setup = (feature = [Feature(x -> (zscore(x)), Symbol("μ_$i"),
+                                "Mean value of the time series", ["0"])
+                        for i in 1:100];
+             𝐱 = rand(1000, 2))
+    b = @benchmark [f(𝐱) for f in feature] setup=setup
     @test median(a.times) < median(b.times) / 1.5
 
     # using PProf

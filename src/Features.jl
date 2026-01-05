@@ -54,9 +54,9 @@ getdescription(𝑓::Feature) = 𝑓.description
 # * Calculate features
 (𝑓::AbstractFeature)(x::AbstractVector{<:Number}) = x |> getmethod(𝑓)
 (𝑓::AbstractFeature)(X::AbstractArray{<:AbstractArray}) = map(𝑓, X)
-function (𝑓::AbstractFeature)(X::AbstractArray{T}) where {T<:Number}
+function (𝑓::AbstractFeature)(X::AbstractArray{T}) where {T <: Number}
     dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
-    𝑓(eachslice(X; dims, drop=true))
+    𝑓(eachslice(X; dims, drop = true))
 end
 
 # * Comparing features
@@ -71,7 +71,7 @@ function formatlong(𝑓::AbstractFeature)
     [string(typeof(𝑓)) * " ",
      string(getname(𝑓)),
      " with fields:\n",
-     "description: ",
+     "$(repeat(' ', 3))description: ",
      getdescription(𝑓),
      "\n$(repeat(' ', 3))keywords: ",
      "$(commasep(getkeywords(𝑓))...)"]
@@ -81,6 +81,8 @@ show(io::IO, 𝑓::AbstractFeature) = print(io, formatlong(𝑓)...)
 function show(io::IO, m::MIME"text/plain", 𝑓::AbstractFeature)
     s = formatlong(𝑓)
     printstyled(io, s[1])
+    println(io)
+    println(io)
     printstyled(io, s[2], color = :light_blue, bold = true)
     printstyled(io, s[3])
     printstyled(io, s[4], color = :magenta)
