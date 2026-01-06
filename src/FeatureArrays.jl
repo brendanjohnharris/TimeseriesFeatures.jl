@@ -198,14 +198,14 @@ function LabelledFeatureArray(x::AbstractArray, F::AbstractDimArray, f; kwargs..
                  metadata = DimensionalData.metadata(x),
                  refdims = DimensionalData.refdims(x), kwargs...)
 end
-function LabelledFeatureArray(x::AbstractDimArray, F::AbstractDimArray, f; kwargs...)
+function LabelledFeatureArray(x::AbstractDimArray, F::AbstractArray, f; kwargs...)
     newdims = (_featuredim(getnames(f)), DimensionalData.dims(x)[2:end]...)
     FeatureArray(parent(F), newdims;
                  name = _name(x),
                  metadata = DimensionalData.metadata(x),
                  refdims = DimensionalData.refdims(x), kwargs...)
 end
-function LabelledFeatureArray(x::AbstractDimArray{<:AbstractArray}, F::AbstractDimArray, f;
+function LabelledFeatureArray(x::AbstractDimArray{<:AbstractArray}, F::AbstractArray, f;
                               kwargs...)
     newdims = (_featuredim(getnames(f)), DimensionalData.dims(x)[1:end]...)
     FeatureArray(parent(F), newdims;
@@ -227,10 +227,13 @@ function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Typ
     vec(parent(F)) .= Iterators.flatten(Fc)
     return F
 end
-function (𝒇::FeatureSet)(X::AbstractArray{<:Number}, args...; kwargs...)
-    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
-    F = 𝒇(eachslice(X; dims, drop = true), args...; kwargs...)
-    LabelledFeatureArray(X, F, 𝒇)
+# _firstdim(a) = @view a[(1, ntuple(_ -> Colon(), Val(ndims(a) - 1))...)...]
+function (𝒇::FeatureSet)(X::AbstractArray{T, N}, return_type::Type = Float64;
+                         kwargs...) where {T <: Number, N}
+    dims = ntuple(i -> i + 1, N - 1)
+    F = LabelledFeatureArray(X, Array{return_type}(undef, length(𝒇), size(X)[2:end]...), 𝒇)
+    F .= 𝒇(eachslice(X; dims); kwargs...)
+    return F
 end
 
 (𝑓::AbstractFeature)(𝒳::AbstractDimStack) = map(𝑓, 𝒳)

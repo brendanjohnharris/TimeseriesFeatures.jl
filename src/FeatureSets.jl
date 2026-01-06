@@ -4,7 +4,7 @@ import ..Features: AbstractFeature, Feature, getname, getmethod, getkeywords,
                    formatshort
 using DimensionalData
 import Base: show, size, getindex, setindex!, similar, eltype, deleteat!, filter, convert,
-             promote_rule
+             promote_rule, IndexStyle
 
 export AbstractFeatureSet, FeatureSet,
        getfeatures, getmethods, getnames, getkeywords, getdescriptions
