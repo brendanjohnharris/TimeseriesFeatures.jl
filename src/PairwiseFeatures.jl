@@ -39,6 +39,10 @@ end
 function (𝑓::PairwiseFeature)(X::AbstractArray{<:AbstractArray})
     map(𝑓, Iterators.product(X, X))
 end
+function (𝑓::AbstractPairwiseFeature)(X::AbstractArray{T}) where {T <: Number}
+    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
+    𝑓(eachslice(X; dims, drop = true))
+end
 
 # * SuperPairwiseFeature calculations
 function (𝑓::SuperPairwiseFeature)(x::AbstractVector{<:Number})
@@ -82,6 +86,11 @@ function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
     LabelledFeatureArray(X, F, 𝒇)
 end
+function (𝒇::PairwiseFeatureSet)(X::AbstractArray{<:Number}, args...; kwargs...)
+    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
+    F = 𝒇(eachslice(X; dims, drop = true), args...; kwargs...)
+    LabelledFeatureArray(X, F, 𝒇)
+end
 
 # * SuperPairwiseFeatureSet calculations
 const SuperPairwiseFeatureSet = FeatureSet{SuperPairwiseFeature}
@@ -123,6 +132,12 @@ end
 function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{<:AbstractDimVector},
                                       return_type::Type = DimArray{Float64})
     F = convert(Vector{return_type}, [𝑓(X) for 𝑓 in 𝒇])
+    LabelledFeatureArray(X, F, 𝒇)
+end
+function (𝒇::SuperPairwiseFeatureSet)(X::AbstractArray{T, N}, args...;
+                                      kwargs...) where {T <: Number, N}
+    dims = NTuple{ndims(X) - 1, Int}(2:ndims(X))
+    F = 𝒇(eachslice(X; dims, drop = true), args...; kwargs...)
     LabelledFeatureArray(X, F, 𝒇)
 end
 

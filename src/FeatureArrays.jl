@@ -227,7 +227,6 @@ function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Typ
     vec(parent(F)) .= Iterators.flatten(Fc)
     return F
 end
-# _firstdim(a) = @view a[(1, ntuple(_ -> Colon(), Val(ndims(a) - 1))...)...]
 function (𝒇::FeatureSet)(X::AbstractArray{T, N}, return_type::Type = Float64;
                          kwargs...) where {T <: Number, N}
     dims = ntuple(i -> i + 1, N - 1)

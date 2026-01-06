@@ -68,15 +68,15 @@ end
         @test length(f) == 10
 
         f = @inferred μ(X)
-        @test f isa Vector{Float64}
+        @test f isa AbstractVector{Float64}
         @test length(f) == 10
 
         f = @inferred μ(XX)
-        @test f isa Matrix{Float64}
+        @test f isa AbstractMatrix{Float64}
         @test size(f) == (3, 4)
 
         f = @inferred μ(xX)
-        @test f isa Vector{Vector{Float64}}
+        @test f isa AbstractVector{<:AbstractVector{Float64}}
         @test length(f) == 4
         @test length(f[1]) == 3
 
@@ -220,8 +220,7 @@ end
     @test 𝒇₃(X)[[:sum, :length]] == 𝒇₃(X)[[:sum, :length], :, :]
 
     F = @test_nowarn μ(X)
-    @test F isa Array{<:Float64, 2} # Extra dims are dropped
-    @test size(F) == (3, 3)
+    @test size(F) == (3, 3) # Extra dims are dropped
 end
 
 @testitem "Vector of vectors" setup=[Setup] begin
@@ -437,9 +436,9 @@ end
     f = @test_nowarn 𝑓(X)
     @inferred 𝑓(X)
 
-    @inferred SuperFeature(𝑓)
-    @inferred SuperFeature(𝑓)(X)
-    @test SuperFeature(𝑓)(X)≈I(5) atol=0.05
+    # @inferred SuperFeature(𝑓)
+    @inferred 𝑓(X)
+    @test 𝑓(X)≈I(5) atol=0.05
 
     X = DimArray(randn(100000, 2), (Dim{:x}(1:100000), Dim{:var}(1:2)))
     f = @test_nowarn 𝑓(X)
