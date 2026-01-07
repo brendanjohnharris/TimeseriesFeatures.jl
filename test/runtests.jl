@@ -59,36 +59,58 @@ end
         @test Feature(μ) == μ
 
         # * Calculate features
-        f = @inferred μ(x)
+        if VERSION ≥ v"1.12.0"
+            f = @inferred μ(x)
+        else
+            f = μ(x)
+        end
         @test f isa Float64
         @test f≈0.5 atol=0.05
 
-        f = @inferred μ(xx)
+        if VERSION ≥ v"1.12.0"
+            f = @inferred μ(xx)
+        else
+            f = μ(xx)
+        end
         @test f isa Vector{Float64}
         @test length(f) == 10
 
-        f = @inferred μ(X)
+        if VERSION ≥ v"1.12.0"
+            f = @inferred μ(X)
+        else
+            f = μ(X)
+        end
         @test f isa AbstractVector{Float64}
         @test length(f) == 10
 
-        f = @inferred μ(XX)
+        if VERSION ≥ v"1.12.0"
+            f = @inferred μ(XX)
+        else
+            f = μ(XX)
+        end
         @test f isa AbstractMatrix{Float64}
         @test size(f) == (3, 4)
 
-        f = @inferred μ(xX)
+        if VERSION ≥ v"1.12.0"
+            f = @inferred μ(xX)
+        else
+            f = μ(xX)
+        end
         @test f isa AbstractVector{<:AbstractVector{Float64}}
         @test length(f) == 4
         @test length(f[1]) == 3
 
-        map(Ts) do T
-            @inferred μ(convert.(T, round.(x)))
-            @inferred μ([convert.(T, round.(x)) for x in xx])
-            Y = convert.(T, round.(X))
-            @inferred μ(Y)
-            @inferred μ(convert.(T, round.(XX)))
-            yY = [convert.(T, round.(x)) for x in xX]
-            @inferred map(μ, yY)
-            @inferred μ(yY)
+        if VERSION ≥ v"1.12.0"
+            map(Ts) do T
+                @inferred μ(convert.(T, round.(x)))
+                @inferred μ([convert.(T, round.(x)) for x in xx])
+                Y = convert.(T, round.(X))
+                @inferred μ(Y)
+                @inferred μ(convert.(T, round.(XX)))
+                yY = [convert.(T, round.(x)) for x in xX]
+                @inferred map(μ, yY)
+                @inferred μ(yY)
+            end
         end
     end
 end
@@ -364,7 +386,9 @@ end
     𝒇 = SuperFeatureSet([μ, σ])
 
     F = @test_nowarn σ(x)
-    @inferred σ(x)
+    if VERSION ≥ v"1.12.0"
+        @inferred σ(x)
+    end
     @test all(F .≈ 1.0)
     @test F isa DimArray{Float64}
     @test dims(F, 1) isa Dim{:var}
@@ -579,36 +603,44 @@ end
 
     # * Features
     @inferred getmethod(μ)(x)
-    @inferred μ(x)
-    @inferred μ(xx)
-    @inferred μ(X)
+    if VERSION ≥ v"1.12.0"
+        f = @inferred μ(x)
+        @inferred μ(x)
+        @inferred μ(xx)
+        @inferred μ(X)
+    end
 
     # * Super Features
     @inferred SuperFeature(μ, TimeseriesFeatures.zᶠ)
     𝑓 = SuperFeature(μ, TimeseriesFeatures.zᶠ)
     @test 𝑓(rand(1000))≈0.0 atol=1e-10
-    @inferred getmethod(𝑓)(x)
-    @inferred getsuper(𝑓)(x)
-    @inferred 𝑓(x)
-    @inferred 𝑓(xx)
+    if VERSION ≥ v"1.12.0"
+        @inferred getsuper(𝑓)(x)
+
+        @inferred 𝑓(x)
+        @inferred 𝑓(xx)
+        @inferred 𝑓(X)
+    end
+
     @test all(abs.(𝑓(xx)) .< 1e-10)
-    @inferred 𝑓(X)
     @test all(abs.(𝑓(X)) .< 1e-10)
 
     # * FeatureSets (x, xx, X)
-    @inferred 𝒇₃(x)
-    @inferred 𝒇₃(X)
-    @inferred 𝒇₃(XX)
-    @inferred 𝒇₃(xx)
+    if VERSION ≥ v"1.12.0"
+        @inferred 𝒇₃(x)
+        @inferred 𝒇₃(X)
+        @inferred 𝒇₃(XX)
+        @inferred 𝒇₃(xx)
 
-    @inferred 𝒇₃(x, Any)
-    @inferred 𝒇₃(X, Any)
-    @inferred 𝒇₃(XX, Any)
-    @inferred 𝒇₃(xx, Any)
+        @inferred 𝒇₃(x, Any)
+        @inferred 𝒇₃(X, Any)
+        @inferred 𝒇₃(XX, Any)
+        @inferred 𝒇₃(xx, Any)
 
-    # * SuperFeatureSets (x, xx, X)
-    @inferred fast(x)
-    @inferred fast(X)
-    @inferred fast(xx)
-    @inferred fast(XX)
+        # * SuperFeatureSets (x, xx, X)
+        @inferred fast(x)
+        @inferred fast(X)
+        @inferred fast(xx)
+        @inferred fast(XX)
+    end
 end
