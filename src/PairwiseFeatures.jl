@@ -61,6 +61,9 @@ end
 function (𝑓::PairwiseUnion)(xy::NTuple{2, AbstractVector{<:Number}})
     𝑓(first(xy), last(xy))
 end
+function (𝑓::PairwiseUnion)(xs::AbstractMatrix{<:Number})
+    𝑓(eachcol(xs))
+end
 
 # * PairwiseFeatureSet calculations
 const PairwiseFeatureSet = FeatureSet{<:AbstractPairwiseFeature}
