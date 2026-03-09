@@ -6,7 +6,7 @@ using MoreMaps
 using DimensionalData
 import DimensionalData: dims, refdims, data, name, metadata, rebuild, parent,
                         AbstractDimArray, NoName, Categorical, Unordered
-import DimensionalData.Dimensions: AnonDim, format, LookupArrays.NoMetadata
+import DimensionalData.Dimensions: AnonDim, format, NoMetadata
 import Base: Array, getindex, setindex!
 
 export AbstractFeatureArray, AbstractFeatureVector, AbstractFeatureMatrix,
@@ -47,9 +47,14 @@ struct FeatureArray{T, N,
 end
 
 function DimensionalData.dimconstructor(::Tuple{<:FeatDim,
-                                                Vararg{<:DimensionalData.Dimension}})
+                                                Vararg{DimensionalData.Dimensions.Dimension}})
     FeatureArray
 end
+DimensionalData.dimconstructor(::Tuple{<:FeatDim, Vararg}) = FeatureArray
+DimensionalData.dimconstructor(::FeatDim) = FeatureArray
+
+# * Need to overload stack for cases where the inner arrays are DimArrays
+Base.stack(A::FeatureArray) = stack(DimArray(A); dims = 1) |> FeatureArray
 
 function FeatureArray(data::A, dims::Tuple{D, Vararg};
                       refdims::R = (), name::Na = NoName(),

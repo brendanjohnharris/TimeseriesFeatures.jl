@@ -1,8 +1,5 @@
 using ..DSP
 
-export Analytic_Amplitude, Analytic_Phase, Analytic_Signal, pairwisephaseconsistency,
-       phaselockingvalue, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase
-
 Analytic_Signal = Feature(hilbert, :Analytic_Signal,
                           "Analytic signal of the time series, from the Hilbert Transform",
                           ["transform", "phase", "amplitude", "hilbert"])
@@ -44,3 +41,6 @@ PLV = PairwiseFeature(phaselockingvalue, :PLV,
                       "The phase-locking value", ["synchrony", "phase"]) # Assumes phase time series
 
 PLV_Analytic_Phase = SuperFeature(PLV, Analytic_Phase; merge = true)
+
+export Analytic_Amplitude, Analytic_Phase, Analytic_Signal, pairwisephaseconsistency,
+       phaselockingvalue, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase

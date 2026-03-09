@@ -474,9 +474,11 @@ end
     f = 𝒇(X)
     @test 𝒇(X) isa FeatureArray
     @test 𝒇(X)[1] isa DimArray # * Then stack() them to get a 3D array
-    @test stack(𝒇(X); dims = 1) isa FeatureArray
-    @test stack(𝒇(X); dims = 1)[:Pearson] isa DimArray
-    @test stack(𝒇(X); dims = 1)[:Pearson]≈[1 0; 0 1] atol=0.05
+    @test stack(𝒇(X)) isa AbstractFeatureArray
+    @test cat(𝒇(X); dims = 1) isa AbstractFeatureArray
+    @test stack(𝒇(X)) isa FeatureArray
+    @test stack(𝒇(X))[:Pearson] isa DimArray
+    @test stack(𝒇(X))[:Pearson]≈[1 0; 0 1] atol=0.05
 
     X = randn(10000, 5)
     f = @inferred 𝒇(eachcol(X))
@@ -495,9 +497,9 @@ end
 
     X = DimArray(randn(100000, 2), (Dim{:x}(1:100000), Dim{:var}(1:2)))
     @test 𝒇(X)[1] isa DimArray # * Then stack() them to get a 3D array
-    @test stack(𝒇(X); dims = 1) isa FeatureArray
-    @test stack(𝒇(X); dims = 1)[:Pearson] isa DimArray
-    @test stack(𝒇(X); dims = 1)[:Pearson]≈[1 0; 0 1] atol=0.1
+    @test stack(𝒇(X)) isa FeatureArray
+    @test stack(𝒇(X))[:Pearson] isa DimArray
+    @test stack(𝒇(X))[:Pearson]≈[1 0; 0 1] atol=0.1
 
     X = randn(100000, 5)
     f = @inferred 𝒇(eachcol(X))
@@ -594,7 +596,7 @@ end
 
     x = set(x, sin.(times(x) ./ 2π))
     τ = TimeseriesTools.timescale(x) # This is 1/4 the period; i.e. the time shift it requires to become anti-phase
-    y = TimeseriesTools.Operators.ℬ(x, Int(τ ÷ step(x)))
+    y = TimeseriesTools.TimeseriesBase.Operators.ℬ(x, Int(τ ÷ step(x)))
     @test cor(x, y)≈0 atol=0.05
 end
 
