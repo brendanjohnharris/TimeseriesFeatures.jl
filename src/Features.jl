@@ -64,7 +64,15 @@ hash(𝑓::AbstractFeature, h::UInt) = hash(𝑓.name, h)
 (Base.isequal)(𝑓::AbstractFeature, 𝑓′::AbstractFeature) = Base.isequal(hash(𝑓), hash(𝑓′))
 
 # * Display
-commasep(x) = (y = fill(", ", 2 * length(x) - 1); y[1:2:end] .= x; y)
+function commasep(x)
+    if isempty(x)
+        return String[]
+    else
+        y = fill(", ", 2 * length(x) - 1)
+        y[1:2:end] .= x
+        return y
+    end
+end
 formatshort(𝑓::AbstractFeature) = [string(getname(𝑓)), " $(getdescription(𝑓))"]
 function formatlong(𝑓::AbstractFeature)
     [string(typeof(𝑓)) * " ",
