@@ -2,6 +2,7 @@ module TimeseriesFeatures
 using DimensionalData
 using Requires
 using LinearAlgebra
+using MoreMaps
 import Statistics: mean, std, cov
 
 function __init__()
@@ -12,6 +13,8 @@ function __init__()
         @eval include("../ext/DSPExt.jl")
     end
 end
+
+DEFAULT_CHART() = Chart()
 
 include("Features.jl")
 include("FeatureSets.jl")

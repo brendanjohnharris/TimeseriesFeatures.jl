@@ -103,7 +103,7 @@ end
 
 function (𝒇::SuperFeatureSet)(X::AbstractArray{<:AbstractVector},
                               return_type::Type = Float64;
-                              chart = Chart(Threaded(), ProgressLogger()))
+                              chart = DEFAULT_CHART())
     supers = getsuper.(𝒇)
     ℱ = supers |> unique |> FeatureSet
     idxs = indexin(supers, ℱ)
