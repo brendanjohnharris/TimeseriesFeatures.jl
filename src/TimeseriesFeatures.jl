@@ -14,8 +14,6 @@ function __init__()
     end
 end
 
-DEFAULT_CHART() = Chart()
-
 include("Features.jl")
 include("FeatureSets.jl")
 include("FeatureArrays.jl")

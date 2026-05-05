@@ -226,7 +226,7 @@ function (𝒇::FeatureSet)(x::AbstractVector{<:T},
     y = LabelledFeatureArray(x, y, 𝒇)
 end
 function (𝒇::FeatureSet)(X::AbstractArray{<:AbstractVector}, return_type::Type = Float64;
-                         chart = DEFAULT_CHART())
+                         chart = Chart())
     F = LabelledFeatureArray(X, Array{return_type}(undef, length(𝒇), size(X)...), 𝒇)
     Fc = map(𝒇, chart, X)
     vec(parent(F)) .= Iterators.flatten(Fc)
