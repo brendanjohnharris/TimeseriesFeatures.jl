@@ -5,6 +5,7 @@
 [![Build Status](https://github.com/brendanjohnharris/TimeseriesFeatures.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/brendanjohnharris/TimeseriesFeatures.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/brendanjohnharris/TimeseriesFeatures.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/brendanjohnharris/TimeseriesFeatures.jl)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14969549.svg)](https://doi.org/10.5281/zenodo.10039292)
+[![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
 
 A Julia package providing the core types for representing, composing, and evaluating time-series features. TimeseriesFeatures.jl functionality underpins packages such as [Catch22.jl](https://github.com/brendanjohnharris/Catch22.jl), and is built around three ideas: a `Feature` is a named function with a description and keywords; a `FeatureSet` is a collection of features that can be evaluated against one or many time series in a single call; and a `FeatureArray` is the labelled output, annotated with feature names along its first dimension (a subtype of [`AbstractDimArray`](https://github.com/rafaqz/DimensionalData.jl)).
 
@@ -88,12 +89,11 @@ Bundle pairwise features into a `PairwiseFeatureSet` to evaluate several togethe
 
 # Parallelism and progress with MoreMaps.jl
 
-Evaluating a feature set across many time series is dispatched through [MoreMaps.jl](https://github.com/brendanjohnharris/MoreMaps.jl). Pass a `chart` keyword to control the execution backend and progress reporting. The default is `Chart(Threaded(), ProgressLogger())`, i.e. multithreaded with `ProgressLogging.jl` output:
+Evaluating a feature set across many time series is dispatched through [MoreMaps.jl](https://github.com/brendanjohnharris/MoreMaps.jl). Pass a `chart` keyword to control the execution backend and progress reporting. The default is `Chart()`, i.e. plain sequential evaluation with no progress output; threading and progress logging are opt-in:
 ```julia
 using MoreMaps
-F = 𝒇(X)                                            # default: Threaded() + ProgressLogger()
-F = 𝒇(X; chart = Chart())                           # plain sequential, no progress
-F = 𝒇(X; chart = Chart(Sequential(), NoProgress())) # explicit sequential
+F = 𝒇(X)                                            # default: sequential, no progress
+F = 𝒇(X; chart = Chart(Threaded(), ProgressLogger())) # multithreaded with ProgressLogging.jl output
 ```
 Available backends include `Sequential()`, `Threaded()`, `Distributed()`, and `Daggermap()`; available progress loggers include `NoProgress()`, `LogLogger(n)`, `ProgressLogger()`, and `TermLogger()`. For example, to run distributed across worker processes with `@info`-style updates every 10 items:
 ```julia
