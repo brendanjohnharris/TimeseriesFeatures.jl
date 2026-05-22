@@ -19,5 +19,4 @@ TimeseriesTools = "380cddd1-6ef2-46ca-b087-e7151fb095ff"
 [compat]
 ComplexityMeasures = "<3.8"
 OpenSpecFun_jll = "<0.5.5"  # Weird compatibility bugs
-FFTW_jll = "<3.3.10"
 julia = "1"
