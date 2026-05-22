@@ -30,6 +30,7 @@ Statistics = "1"
 StatsBase = "0.30 - 0.34"
 TimeseriesTools = "0.6.1, 0.7, 0.8"
 julia = "1.10"
+FFTW_jll = "3.3.10" # macos issues
 
 [extras]
 Associations = "614afb3a-e278-4863-8805-9959372b9ec2"
