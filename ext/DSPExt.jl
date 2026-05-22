@@ -1,14 +1,20 @@
 using ..DSP
 
-Analytic_Signal = Feature(hilbert, :Analytic_Signal,
-                          "Analytic signal of the time series, from the Hilbert Transform",
-                          ["transform", "phase", "amplitude", "hilbert"])
-Analytic_Phase = Feature(x -> x |> hilbert .|> angle, :Analytic_Phase,
-                         "Analytic phase of the time series, from the Hilbert Transform",
-                         ["transform", "phase", "hilbert"])
-Analytic_Amplitude = Feature(x -> x |> hilbert .|> abs, :Analytic_Amplitude,
-                             "Analytic amplitude of the time series, from the Hilbert Transform",
-                             ["transform", "amplitude"])
+Analytic_Signal = Feature(
+    hilbert, :Analytic_Signal,
+    "Analytic signal of the time series, from the Hilbert Transform",
+    ["transform", "phase", "amplitude", "hilbert"]
+)
+Analytic_Phase = Feature(
+    x -> x |> hilbert .|> angle, :Analytic_Phase,
+    "Analytic phase of the time series, from the Hilbert Transform",
+    ["transform", "phase", "hilbert"]
+)
+Analytic_Amplitude = Feature(
+    x -> x |> hilbert .|> abs, :Analytic_Amplitude,
+    "Analytic amplitude of the time series, from the Hilbert Transform",
+    ["transform", "amplitude"]
+)
 
 function pairwisephaseconsistency(x::AbstractVector) # Eq. 14 of Vinck 2010
     N = length(x)
@@ -24,9 +30,11 @@ function pairwisephaseconsistency(x::AbstractVector, y::AbstractVector)
     return pairwisephaseconsistency(y .- x)
 end
 
-PPC = PairwiseFeature(pairwisephaseconsistency, :PPC,
-                      "The pairwise-phase consistency, an unbiased estimate of the phase-locking value",
-                      ["synchrony", "phase"]) # Assumes phase time series
+PPC = PairwiseFeature(
+    pairwisephaseconsistency, :PPC,
+    "The pairwise-phase consistency, an unbiased estimate of the phase-locking value",
+    ["synchrony", "phase"]
+) # Assumes phase time series
 
 PPC_Analytic_Phase = SuperFeature(PPC, Analytic_Phase; merge = true)
 
@@ -37,10 +45,12 @@ function phaselockingvalue(x::AbstractVector, y::AbstractVector)
     return phaselockingvalue(y .- x)
 end
 
-PLV = PairwiseFeature(phaselockingvalue, :PLV,
-                      "The phase-locking value", ["synchrony", "phase"]) # Assumes phase time series
+PLV = PairwiseFeature(
+    phaselockingvalue, :PLV,
+    "The phase-locking value", ["synchrony", "phase"]
+) # Assumes phase time series
 
 PLV_Analytic_Phase = SuperFeature(PLV, Analytic_Phase; merge = true)
 
 export Analytic_Amplitude, Analytic_Phase, Analytic_Signal, pairwisephaseconsistency,
-       phaselockingvalue, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase
+    phaselockingvalue, PPC_Analytic_Phase, PPC, PLV, PLV_Analytic_Phase

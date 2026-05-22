@@ -4,26 +4,36 @@ function maybe_pacf end
 function maybe_median end
 
 ac_lags = 1:40
-ACF = Feature(x -> maybe_autocor(x, ac_lags; demean = true), :ACF,
-              "Autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"])
+ACF = Feature(
+    x -> maybe_autocor(x, ac_lags; demean = true), :ACF,
+    "Autocorrelation function to lag $(maximum(ac_lags))", ["autocorrelation"]
+)
 
-AC = SuperFeatureSet([x -> x[ℓ] for ℓ in eachindex(ac_lags)],
-                     Symbol.(["AC_$ℓ" for ℓ in ac_lags]),
-                     ["Autocorrelation at lag $ℓ" for ℓ in ac_lags],
-                     [["correlation"] for ℓ in ac_lags],
-                     ACF) # We compute the ACF just once, and pick off results for each feature
+AC = SuperFeatureSet(
+    [x -> x[ℓ] for ℓ in eachindex(ac_lags)],
+    Symbol.(["AC_$ℓ" for ℓ in ac_lags]),
+    ["Autocorrelation at lag $ℓ" for ℓ in ac_lags],
+    [["correlation"] for ℓ in ac_lags],
+    ACF
+) # We compute the ACF just once, and pick off results for each feature
 export AC
 
-PACF = Feature(x -> maybe_pacf(x, ac_lags; method = :regression), :PACF,
-               "Partial autocorrelation function to lag $(maximum(ac_lags))",
-               ["autocorrelation"])
+PACF = Feature(
+    x -> maybe_pacf(x, ac_lags; method = :regression), :PACF,
+    "Partial autocorrelation function to lag $(maximum(ac_lags))",
+    ["autocorrelation"]
+)
 
-Partial_AC = SuperFeatureSet([x -> x[ℓ] for ℓ in eachindex(ac_lags)],
-                             Symbol.(["Partial_AC_$ℓ" for ℓ in ac_lags]),
-                             ["Partial autocorrelation at lag $ℓ (regression method)"
-                              for ℓ in ac_lags],
-                             [["correlation"] for ℓ in ac_lags],
-                             PACF)
+Partial_AC = SuperFeatureSet(
+    [x -> x[ℓ] for ℓ in eachindex(ac_lags)],
+    Symbol.(["Partial_AC_$ℓ" for ℓ in ac_lags]),
+    [
+        "Partial autocorrelation at lag $ℓ (regression method)"
+            for ℓ in ac_lags
+    ],
+    [["correlation"] for ℓ in ac_lags],
+    PACF
+)
 export Partial_AC
 
 function firstcrossing(r, threshold = 0)
@@ -61,6 +71,7 @@ function firstcrossingacf(x, threshold = 0)
             i += 1
         end
     end
+    return
 end
 
 """
@@ -102,14 +113,18 @@ function RAD(z, τ = 1, doAbs = true)
     sigma_dx = std(y - x)
     densityDifference = 1 / superMedianSD - 1 / subMedianSD
 
-    f = sigma_dx * densityDifference
+    return f = sigma_dx * densityDifference
 end
 RAD(z::AbstractDimArray, args...; kwargs...) = RAD(parent(z), args...; kwargs...)
 
-CR_RAD = Feature(x -> RAD(x, 1, true), :CR_RAD,
-                 "Rescaled Auto-Density criticality metric (centered)",
-                 ["criticality"])
-CR_RAD_raw = Feature(x -> RAD(x, 1, false), :CR_RAD_raw,
-                     "Rescaled Auto-Density criticality metric (uncentered)",
-                     ["criticality"])
+CR_RAD = Feature(
+    x -> RAD(x, 1, true), :CR_RAD,
+    "Rescaled Auto-Density criticality metric (centered)",
+    ["criticality"]
+)
+CR_RAD_raw = Feature(
+    x -> RAD(x, 1, false), :CR_RAD_raw,
+    "Rescaled Auto-Density criticality metric (uncentered)",
+    ["criticality"]
+)
 export RAD, CR_RAD, CR_RAD_raw, firstcrossingacf, firstcrossing

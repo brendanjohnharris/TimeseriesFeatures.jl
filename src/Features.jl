@@ -2,12 +2,12 @@ module Features
 using DimensionalData
 import Base: ==, show, hash
 export AbstractFeature,
-       Feature,
-       getmethod,
-       getname,
-       getkeywords,
-       getdescription,
-       Identity
+    Feature,
+    getmethod,
+    getname,
+    getkeywords,
+    getdescription,
+    Identity
 
 """
 `AbstractFeature` has a loose interface. Overload (𝑓::AbstractFeature)(x) for different
@@ -75,13 +75,15 @@ function commasep(x)
 end
 formatshort(𝑓::AbstractFeature) = [string(getname(𝑓)), " $(getdescription(𝑓))"]
 function formatlong(𝑓::AbstractFeature)
-    [string(typeof(𝑓)) * " ",
-     string(getname(𝑓)),
-     " with fields:\n",
-     "$(repeat(' ', 3))description: ",
-     getdescription(𝑓),
-     "\n$(repeat(' ', 3))keywords: ",
-     "$(commasep(getkeywords(𝑓))...)"]
+    return [
+        string(typeof(𝑓)) * " ",
+        string(getname(𝑓)),
+        " with fields:\n",
+        "$(repeat(' ', 3))description: ",
+        getdescription(𝑓),
+        "\n$(repeat(' ', 3))keywords: ",
+        "$(commasep(getkeywords(𝑓))...)",
+    ]
 end
 show(𝑓::AbstractFeature) = print(formatlong(𝑓)...)
 show(io::IO, 𝑓::AbstractFeature) = print(io, formatlong(𝑓)...)
@@ -95,7 +97,7 @@ function show(io::IO, m::MIME"text/plain", 𝑓::AbstractFeature)
     printstyled(io, s[4], color = :magenta)
     printstyled(io, s[5])
     printstyled(io, s[6], color = :yellow)
-    printstyled(io, s[7])
+    return printstyled(io, s[7])
 end
 
 const Identity = Feature(identity, :identity, "Identity function", ["transformation"])

@@ -2,35 +2,39 @@ module SuperFeatures
 using MoreMaps
 
 import ..Features: AbstractFeature, Feature, getmethod, getname, getkeywords,
-                   getdescription, Identity
+    getdescription, Identity
 import ..FeatureSets: AbstractFeatureSet, FeatureSet, getmethods, getnames, getdescriptions,
-                      getkeywords
+    getkeywords
 import ..FeatureArrays: FeatureVector, AbstractDimArray, FeatureArray, _featuredim,
-                        LabelledFeatureArray
+    LabelledFeatureArray
 using ..DimensionalData
 import Base: union, intersect, setdiff, convert, promote_rule, promote_eltype, cat, +, \
 using ProgressLogging
 
 export SuperFeature,
-       SuperFeatureSet,
-       Super, AbstractSuper,
-       getsuper, getfeature
+    SuperFeatureSet,
+    Super, AbstractSuper,
+    getsuper, getfeature
 
 abstract type AbstractSuperFeature <: AbstractFeature end
 
 ## Univariate features
 Base.@kwdef struct SuperFeature{F, G} <:
-                   AbstractSuperFeature where {F <: AbstractFeature, G <:
-                                                                     AbstractFeature}
+    AbstractSuperFeature where {
+        F <: AbstractFeature, G <:
+        AbstractFeature,
+    }
     feature::F
     super::G
     name::Symbol
     description::String = getdescription(feature)
     keywords::Vector{String} = getkeywords(feature)
 end
-function SuperFeature(feature::AbstractFeature, super::AbstractFeature;
-                      merge = false,
-                      kwargs...)
+function SuperFeature(
+        feature::AbstractFeature, super::AbstractFeature;
+        merge = false,
+        kwargs...
+    )
     if merge
         name = Symbol(getname(feature), "_", getname(super))
         description = getdescription(feature) * " [of] " * getdescription(super)
@@ -40,13 +44,15 @@ function SuperFeature(feature::AbstractFeature, super::AbstractFeature;
         description = getdescription(feature)
         keywords = getkeywords(feature)
     end
-    SuperFeature(; feature, super, name, description, keywords, kwargs...)
+    return SuperFeature(; feature, super, name, description, keywords, kwargs...)
 end
-function SuperFeature(method::Function, name::Symbol,
-                      description::String, keywords::Vector{String},
-                      super::AbstractFeature)
+function SuperFeature(
+        method::Function, name::Symbol,
+        description::String, keywords::Vector{String},
+        super::AbstractFeature
+    )
     feature = Feature(method, name, description, keywords)
-    SuperFeature(feature, super, name, description, keywords)
+    return SuperFeature(feature, super, name, description, keywords)
 end
 
 Base.convert(::Type{SuperFeature}, x::Feature) = SuperFeature(x)
@@ -72,26 +78,30 @@ SuperFeatureSet(𝒇::AbstractVector{<:AbstractFeature}) = FeatureSet(map(SuperF
 SuperFeatureSet(𝒇::FeatureSet) = SuperFeatureSet(map(SuperFeature, collect(𝒇)))
 SuperFeatureSet(𝒇::SuperFeatureSet) = 𝒇
 
-function SuperFeatureSet(features::AbstractVector{<:Function}, names::Vector{Symbol},
-                         descriptions::Vector{String}, keywords, super)
-    SuperFeature.(features, names, descriptions, keywords, super) |> FeatureSet
+function SuperFeatureSet(
+        features::AbstractVector{<:Function}, names::Vector{Symbol},
+        descriptions::Vector{String}, keywords, super
+    )
+    return SuperFeature.(features, names, descriptions, keywords, super) |> FeatureSet
 end
 function SuperFeatureSet(features::Feature, args...)
-    [SuperFeature(features, args...)] |> FeatureSet
+    return [SuperFeature(features, args...)] |> FeatureSet
 end
 function SuperFeatureSet(; features, names, keywords, descriptions, super)
-    SuperFeatureSet(features, names, keywords, descriptions, super)
+    return SuperFeatureSet(features, names, keywords, descriptions, super)
 end
 SuperFeatureSet(f::AbstractFeature) = SuperFeatureSet([f])
 
 function stamp(ℱ, idxs, fs)
-    function f(x)
+    return function f(x)
         supervals = ℱ(x, Any)
         return [𝑓(supervals[i]) for (i, 𝑓) in zip(idxs, fs)]
     end
 end
-function (𝒇::SuperFeatureSet)(x::AbstractVector{<:T},
-                              return_type::Type = Float64) where {T <: Number}
+function (𝒇::SuperFeatureSet)(
+        x::AbstractVector{<:T},
+        return_type::Type = Float64
+    ) where {T <: Number}
     F = LabelledFeatureArray(x, Vector{return_type}(undef, length(𝒇)), 𝒇)
     supers = getsuper.(𝒇)
     ℱ = supers |> unique |> FeatureSet
@@ -101,9 +111,11 @@ function (𝒇::SuperFeatureSet)(x::AbstractVector{<:T},
     return F
 end
 
-function (𝒇::SuperFeatureSet)(X::AbstractArray{<:AbstractVector},
-                              return_type::Type = Float64;
-                              chart = Chart())
+function (𝒇::SuperFeatureSet)(
+        X::AbstractArray{<:AbstractVector},
+        return_type::Type = Float64;
+        chart = Chart()
+    )
     supers = getsuper.(𝒇)
     ℱ = supers |> unique |> FeatureSet
     idxs = indexin(supers, ℱ)
@@ -118,47 +130,49 @@ end
 
 # * Feature set arithmetic
 function promote_rule(::Type{<:SuperFeatureSet}, ::Type{<:FeatureSet})
-    SuperFeatureSet{SuperFeature}
+    return SuperFeatureSet{SuperFeature}
 end
 function promote_rule(::Type{<:SuperFeature}, ::Type{<:AbstractFeature})
-    SuperFeature
+    return SuperFeature
 end
 function promote_rule(::Type{AbstractSuperFeature}, ::Type{<:AbstractFeature})
-    SuperFeature
+    return SuperFeature
 end
 function promote_rule(::Type{AbstractSuperFeature}, ::Type{<:Feature{<:H}}) where {H}
-    SuperFeature
+    return SuperFeature
 end
 function promote_rule(::Type{<:SuperFeature}, ::Type{<:Feature{<:H}}) where {H}
-    SuperFeature
+    return SuperFeature
 end
 function Base.promote_eltype(v1::AbstractFeatureSet, v2::AbstractFeatureSet)
-    Base.promote_type(eltype(v1), eltype(v2))
+    return Base.promote_type(eltype(v1), eltype(v2))
 end
 
 # ! None of these are type stable
 function Base.vcat(V1::A, V2::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    vcat(V1..., V2...) |> FeatureSet
+    return vcat(V1..., V2...) |> FeatureSet
 end
 (+)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = vcat(𝒇, 𝒇′)
 (+)(𝒇::AbstractFeature, 𝒇′::AbstractFeature) = FeatureSet([𝒇, 𝒇′])
 function intersect(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    FeatureSet(intersect(collect(𝒇), collect(𝒇′)))
+    return FeatureSet(intersect(collect(𝒇), collect(𝒇′)))
 end
 function union(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    FeatureSet(union(collect(𝒇), collect(𝒇′)))
+    return FeatureSet(union(collect(𝒇), collect(𝒇′)))
 end
 function setdiff(𝒇::A, 𝒇′::B) where {A <: AbstractFeatureSet, B <: AbstractFeatureSet}
-    FeatureSet(setdiff(collect(𝒇), collect(𝒇′)))
+    return FeatureSet(setdiff(collect(𝒇), collect(𝒇′)))
 end
 (\)(𝒇::AbstractFeatureSet, 𝒇′::AbstractFeatureSet) = setdiff(𝒇, 𝒇′)
 
 # Allow operations between FeatureSet and Feature by converting the Feature
 for p in [:+, :\, :setdiff, :union, :intersect]
-    eval(quote
-             ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
-             ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
-         end)
+    eval(
+        quote
+            ($p)(𝒇::AbstractFeatureSet, f::AbstractFeature) = ($p)(𝒇, FeatureSet(f))
+            ($p)(f::AbstractFeature, 𝒇::AbstractFeatureSet) = ($p)(FeatureSet(f), 𝒇)
+        end
+    )
 end
 
 # * Pretty print super feature set
@@ -181,8 +195,10 @@ function Base.show(io::IO, m::MIME"text/plain", 𝒇::SuperFeatureSet)
     max_per_leaf, max_mids = _calc_display_limits(tree, MAX_TREE_LINES)
 
     # Count intermediate supers (mids that are different from their root)
-    n_mids = sum(sum(mid != root for (mid, _) in children)
-                 for (root, children) in tree)
+    n_mids = sum(
+        sum(mid != root for (mid, _) in children)
+            for (root, children) in tree
+    )
     has_mids = n_mids > 0
 
     # === Section 1: Tree summary ===
@@ -233,21 +249,27 @@ function Base.show(io::IO, m::MIME"text/plain", 𝒇::SuperFeatureSet)
                 for (fi, f) in enumerate(features[1:n_to_show])
                     is_last_feat = (fi == n_to_show) && (length(features) <= max_per_leaf)
                     print(io, child_prefix, is_last_feat ? "└─ " : "├─ ")
-                    printstyled(io, string(getname(f)),
-                                color = TREE_COLORS[min(2, length(TREE_COLORS))])
+                    printstyled(
+                        io, string(getname(f)),
+                        color = TREE_COLORS[min(2, length(TREE_COLORS))]
+                    )
                     println(io)
                 end
                 if length(features) > max_per_leaf
                     print(io, child_prefix, "└─ ")
-                    printstyled(io, "... $(length(features) - max_per_leaf) more",
-                                color = :light_black)
+                    printstyled(
+                        io, "... $(length(features) - max_per_leaf) more",
+                        color = :light_black
+                    )
                     println(io)
                 end
             else
                 # Intermediate super with features under it (level 2)
                 print(io, child_prefix, mid_prefix)
-                printstyled(io, string(getname(mid)),
-                            color = TREE_COLORS[min(2, length(TREE_COLORS))])
+                printstyled(
+                    io, string(getname(mid)),
+                    color = TREE_COLORS[min(2, length(TREE_COLORS))]
+                )
                 printstyled(io, " ($(length(features)))", color = :light_black)
                 println(io)
 
@@ -256,14 +278,18 @@ function Base.show(io::IO, m::MIME"text/plain", 𝒇::SuperFeatureSet)
                 for (fi, f) in enumerate(features[1:n_to_show])
                     is_last_feat = (fi == n_to_show) && (length(features) <= max_per_leaf)
                     print(io, child_prefix, feat_prefix, is_last_feat ? "└─ " : "├─ ")
-                    printstyled(io, string(getname(f)),
-                                color = TREE_COLORS[min(3, length(TREE_COLORS))])
+                    printstyled(
+                        io, string(getname(f)),
+                        color = TREE_COLORS[min(3, length(TREE_COLORS))]
+                    )
                     println(io)
                 end
                 if length(features) > max_per_leaf
                     print(io, child_prefix, feat_prefix, "└─ ")
-                    printstyled(io, "... $(length(features) - max_per_leaf) more",
-                                color = :light_black)
+                    printstyled(
+                        io, "... $(length(features) - max_per_leaf) more",
+                        color = :light_black
+                    )
                     println(io)
                 end
             end
@@ -274,8 +300,10 @@ function Base.show(io::IO, m::MIME"text/plain", 𝒇::SuperFeatureSet)
             hidden_mids = n_children - max_mids
             hidden_feats = sum(length(feats) for (_, feats) in children[(max_mids + 1):end])
             print(io, child_prefix, "└─ ")
-            printstyled(io, "... $hidden_mids more branches ($hidden_feats features)",
-                        color = :light_black)
+            printstyled(
+                io, "... $hidden_mids more branches ($hidden_feats features)",
+                color = :light_black
+            )
             println(io)
         end
     end
@@ -290,7 +318,7 @@ function Base.show(io::IO, m::MIME"text/plain", 𝒇::SuperFeatureSet)
         printstyled(io, string(getname(𝒇[i])), color = :light_blue, bold = true)
         println(io)
     end
-    if length(𝒇) > 10
+    return if length(𝒇) > 10
         printstyled(io, "  ... $(length(𝒇) - 10) more features", color = :light_black)
     end
 end
@@ -305,7 +333,7 @@ function _calc_display_limits(tree, max_lines)
     for max_mids in [typemax(Int), 10, 5, 3, 2, 1]
         for max_per_leaf in 5:-1:1
             total = _estimate_lines(tree, max_mids, max_per_leaf) + header_lines +
-                    features_section_lines
+                features_section_lines
             if total <= max_lines
                 return (max_per_leaf, max_mids)
             end
