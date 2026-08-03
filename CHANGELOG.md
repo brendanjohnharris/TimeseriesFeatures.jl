@@ -14,13 +14,11 @@
 ### Fixed
 - `+`/`\`/`∩`/`∪` when mixing `FeatureSet` and `SuperFeatureSet`.
 - `FeatureArray` rebuild via `stack` on Julia 1.12.
-- Pairwise feature evaluation paths.
 
 ## v0.6.1 — 2025-03-05
 
 ### Added
 - `CR_RAD_raw` (uncentred RAD variant); both now call `RAD(x, τ, doAbs)` explicitly.
-- `RAD` strips `AbstractDimArray` to `parent(z)`.
 - Julia 1.10 in CI matrix.
 
 ### Changed
