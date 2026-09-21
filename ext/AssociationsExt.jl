@@ -1,14 +1,9 @@
-# module AssociationsExt
-using .Associations
-# using TimeseriesFeatures
+module AssociationsExt
+using Associations
+using TimeseriesFeatures
 
-MI_Kraskov_NN_20 = PairwiseFeature(
-    (x, y) -> association(KSG1(; k = 20), x, y),
-    :MI_Kraskov_NN_20,
-    "Mutual Information using the Kraskov-1 estimator",
-    ["information_theory", "mutual_information"]
-)
+function TimeseriesFeatures.maybe_association(x::AbstractVector, y::AbstractVector)
+    return association(KSG1(; k = 20), x, y)
+end
 
-export MI_Kraskov_NN_20
-
-# end
+end

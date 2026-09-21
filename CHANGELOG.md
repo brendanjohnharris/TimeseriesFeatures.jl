@@ -1,5 +1,11 @@
 # Changelog
 
+## `0.7.2`
+
+### Changed
+- `DSP` and `Associations` are now loaded through native package extensions rather than `Requires.jl`, which is no longer a dependency. Both extensions precompile, where the `Requires`-loaded code could not, and `DSP` gains a compat bound of `0.7, 0.8`.
+- Features provided by an extension (`Analytic_Signal`, `PPC`, `BandPower`, `MI_Kraskov_NN_20` and friends) now always exist as bindings, and raise an informative error when called without their package loaded rather than being undefined.
+
 ## `0.7.1`
 
 ### Added
