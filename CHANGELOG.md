@@ -1,5 +1,14 @@
 # Changelog
 
+## `0.7.1`
+
+### Added
+- `BandPower(edges; fs, name, psd)` (requires DSP.jl): a `SuperFeatureSet` of power in each successive frequency band, sharing one power-spectral-density estimate across bands. Feature and super names carry `fs`, so sets differing in `fs` keep their own spectra when combined.
+- `bandpower(p, lo, hi)`, integrating a periodogram over the half-open band `[lo, hi)`.
+
+### Fixed
+- Keyword constructors `FeatureSet(; methods, names, descriptions, keywords)` and `SuperFeatureSet(; features, names, descriptions, keywords, super)` passed `keywords` and `descriptions` to each other's slots.
+
 ## `0.7.0`
 
 ### Added

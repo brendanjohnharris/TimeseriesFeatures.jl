@@ -22,7 +22,7 @@ functionality. For compatibility with other `TimeseresFeatures` types, define:
 abstract type AbstractFeature <: Function end
 
 """
-    𝑓 = Feature([;] method::Function, name=Symbol(method), keywords="", description="")
+    𝑓 = Feature([;] method::Function, name = Symbol(method), description = "", keywords = [""])
 
 Construct a `Feature`, which is a function annotated with a `name`, `keywords` and short `description`.
 Features can be called as functions while `getname(𝑓)`, `getkeywords(𝑓)` and `getdescription(𝑓)` can be used to access the annotations.
@@ -31,7 +31,7 @@ The method on vectors will be applied column-wise to `Matrix` inputs, regardless
 
 # Examples
 ```julia
-𝑓 = Feature(sum, :sum, ["distribution"], "Sum of time-series values")
+𝑓 = Feature(sum, :sum, "Sum of time-series values", ["distribution"])
 𝑓(1:10) # == sum(1:10) == 55
 getdescription(𝑓) # "Sum of time-series values"
 ```

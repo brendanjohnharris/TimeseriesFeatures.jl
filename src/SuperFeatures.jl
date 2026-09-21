@@ -87,8 +87,8 @@ end
 function SuperFeatureSet(features::Feature, args...)
     return [SuperFeature(features, args...)] |> FeatureSet
 end
-function SuperFeatureSet(; features, names, keywords, descriptions, super)
-    return SuperFeatureSet(features, names, keywords, descriptions, super)
+function SuperFeatureSet(; features, names, descriptions, keywords, super)
+    return SuperFeatureSet(features, names, descriptions, keywords, super)
 end
 SuperFeatureSet(f::AbstractFeature) = SuperFeatureSet([f])
 

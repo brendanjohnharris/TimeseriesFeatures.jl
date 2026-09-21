@@ -708,3 +708,73 @@ end
         @inferred fast(XX)
     end
 end
+
+@testitem "Keyword constructors" setup = [Setup] begin
+    using Test, TimeseriesFeatures
+    methods = [sum, length]
+    names = [:sum, :length]
+    descriptions = ["∑x¹", "∑x⁰"]
+    keywords = [["distribution"], ["sampling"]]
+
+    𝒈 = FeatureSet(; methods, names, descriptions, keywords)
+    @test getdescriptions(𝒈) == descriptions
+    @test getkeywords(𝒈) == keywords
+
+    super = Feature(identity, :id, "Identity", ["transformation"])
+    𝒉 = SuperFeatureSet(; features = methods, names, descriptions, keywords, super)
+    @test getdescriptions(𝒉) == descriptions
+    @test getkeywords(𝒉) == keywords
+end
+
+@testitem "BandPower" setup = [Setup] begin
+    using DSP, Statistics, Test, TimeseriesFeatures
+
+    fs = 100
+    t = range(0, 10 - 1 / fs; step = 1 / fs)
+    y = sin.(2π * 12.5 .* t) |> collect # 12.5 Hz, centred in the [10, 15) band
+
+    𝒇 = BandPower(0:5:50; fs)
+    @test 𝒇 isa SuperFeatureSet
+    @test length(𝒇) == 10
+    @test getnames(𝒇)[1] == :BandPower_100_0_5
+    @test getnames(𝒇)[3] == :BandPower_100_10_15
+
+    # * The PSD is shared, so it is computed only once per time series
+    @test length(unique(getsuper.(𝒇))) == 1
+    @test getname(getsuper(𝒇[1])) == :BandPower_100_PSD
+
+    F = 𝒇(y)
+    @test F isa FeatureVector
+    @test argmax(F) == 3
+
+    # * Absolute scaling: band powers over [0, fs/2) sum to the mean square (Parseval)
+    @test sum(F)≈mean(y .^ 2) rtol=0.05
+
+    # * Bands are half open, so adjacent bands partition their union
+    @test sum(BandPower([10, 12.5, 15]; fs)(y))≈F[3] rtol=1.0e-10
+
+    # * Matrix input, one column per time series
+    Y = hcat(y, reverse(y), randn(length(y)))
+    @test size(𝒇(Y)) == (10, 3)
+    @test parent(𝒇(Y)[:, 1]) == parent(F)
+
+    # * A differing `fs` is named apart by default, so combined sets do not alias
+    𝒈 = BandPower(0:5:50; fs = 300)
+    @test isempty(getnames(𝒇) ∩ getnames(𝒈))
+    @test getname(getsuper(𝒈[1])) != getname(getsuper(𝒇[1]))
+    @test argmax(𝒈(y)) == 8 # y is 0.125 cycles/sample, so 37.5 Hz at fs = 300
+    @test parent((𝒇 + 𝒈)(y)) == [parent(F); parent(𝒈(y))]
+
+    # * A matching `fs` shares one spectrum across different band edges
+    𝒌 = BandPower(0:10:50; fs)
+    @test isequal(getsuper(𝒌[1]), getsuper(𝒇[1]))
+    @test length(unique(getsuper.(𝒇 + 𝒌))) == 1
+    @test parent((𝒇 + 𝒌)(y)) == [parent(F); parent(𝒌(y))]
+
+    # * Names carry numeric values, not types, so an equal `fs` or edge of another type aliases
+    @test isequal(getsuper(BandPower(0:5:50; fs = 100.0)[1]), getsuper(𝒇[1]))
+    @test getnames(BandPower(0.0:5.0:50.0; fs)) == getnames(𝒇)
+
+    # * `name` remains overridable, for distinguishing a custom `psd`
+    @test getnames(BandPower(0:5:50; fs, name = :Alt))[1] == :Alt_0_5
+end

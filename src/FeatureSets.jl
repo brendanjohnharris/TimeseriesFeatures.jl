@@ -12,7 +12,7 @@ export AbstractFeatureSet, FeatureSet,
 abstract type AbstractFeatureSet <: AbstractVector{AbstractFeature} end
 
 """
-    FeatureSet(methods, [names, keywords, descriptions])
+    FeatureSet(methods, [names, descriptions, keywords])
     FeatureSet(features::Vector{T}) where {T <: AbstractFeature}
 
 Construct a `FeatureSet` from `methods` (a vector of functions) and optionally provide
@@ -49,8 +49,8 @@ function FeatureSet(methods::AbstractVector{<:Function}, args...)
     return Feature.(methods, args...) |> FeatureSet
 end
 FeatureSet(methods::Function, args...) = [Feature(methods, args...)] |> FeatureSet
-function FeatureSet(; methods, names, keywords, descriptions)
-    return FeatureSet(methods, names, keywords, descriptions)
+function FeatureSet(; methods, names, descriptions, keywords)
+    return FeatureSet(methods, names, descriptions, keywords)
 end
 FeatureSet(f::AbstractFeature) = FeatureSet([f])
 
