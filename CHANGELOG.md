@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- `RAD`'s centering flag is renamed `doAbs` → `doCentre`, matching the RAD package, hctsa (`CR_RAD`) and pyhctsa (`do_centre`). It is positional, so calls are unaffected; the docstring now says the series is centred at its median (it said 0).
+
 ## `0.7.2`
 
 ### Changed

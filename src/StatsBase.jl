@@ -75,7 +75,7 @@ function firstcrossingacf(x, threshold = 0)
 end
 
 """
-    RAD(x, τ=1, doAbs=true)
+    RAD(x, τ=1, doCentre=true)
 Compute the rescaled auto-density, a metric for inferring the
 distance to criticality that is insensitive to uncertainty in the noise strength.
 Calibrated to experiments on the Hopf bifurcation with variable and unknown
@@ -83,14 +83,14 @@ measurement noise.
 
 Inputs:
     x:      The input time series (vector).
-    doAbs:  Whether to centre the time series at 0 then take absolute values (logical flag)
+    doCentre: Whether to centre the time series at its median then take absolute values (logical flag)
     τ:      The embedding and differencing delay in units of the timestep (integer), or :τ
 
 Outputs:
     f:      The RAD feature value
 """
-function RAD(z, τ = 1, doAbs = true)
-    if doAbs
+function RAD(z, τ = 1, doCentre = true)
+    if doCentre
         z = z .- maybe_median(z)
         z = abs.(z)
     end
